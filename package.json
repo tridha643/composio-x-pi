@@ -1,0 +1,36 @@
+{
+  "name": "@constellagent/pi-extension",
+  "version": "0.0.1",
+  "description": "Constellagent Pi extension for Composio-backed runtime and authoring tools.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --target bun --format esm --outdir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:integration": "bun run tests/integration.ts",
+    "dev:pi": "bun run examples/embed-authoring.ts",
+    "dev:ipc-stub": "bun run examples/ipc-stub.ts"
+  },
+  "dependencies": {
+    "@composio/core": "*",
+    "@sinclair/typebox": "^0.34.41"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "bun-types": "^1.3.9",
+    "typescript": "^5.8.3"
+  }
+}
