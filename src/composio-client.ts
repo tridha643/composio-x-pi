@@ -1,3 +1,4 @@
+import { readStoredComposioConfig, writeStoredComposioApiKey } from "./config-store.js";
 import { UserFacingError } from "./lib/errors.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -6,20 +7,31 @@ export type ComposioConfig = {
   apiKey?: string;
   userId?: string;
   apiKeyPresent: boolean;
+  apiKeySource: "env" | "stored" | null;
 };
 
 let composioClientPromise: Promise<unknown> | null = null;
 let toolRouterSessionPromise: Promise<unknown> | null = null;
 
 export function getComposioConfig(env: NodeJS.ProcessEnv = process.env): ComposioConfig {
-  const apiKey = env.COMPOSIO_API_KEY?.trim();
-  const userId = env.COMPOSIO_USER_ID?.trim();
+  const stored = readStoredComposioConfig();
+  const envApiKey = env.COMPOSIO_API_KEY?.trim();
+  const storedApiKey = stored.apiKey?.trim();
+  const apiKey = envApiKey || storedApiKey;
+  const userId = env.COMPOSIO_USER_ID?.trim() || stored.userId || "default";
 
   return {
     apiKey,
     userId,
     apiKeyPresent: Boolean(apiKey),
+    apiKeySource: envApiKey ? "env" : storedApiKey ? "stored" : null,
   };
+}
+
+export async function setComposioApiKey(apiKey: string): Promise<void> {
+  await writeStoredComposioApiKey(apiKey);
+  process.env.COMPOSIO_API_KEY = apiKey.trim();
+  resetComposioSingletons();
 }
 
 export function resetComposioSingletons(): void {
@@ -34,7 +46,9 @@ function requireConfiguredValue(value: string | undefined, label: string): strin
 
   throw new UserFacingError(
     "MISSING_CONFIG",
-    `${label} is required. Check the Composio x Pi extension environment configuration.`,
+    label === "COMPOSIO_API_KEY"
+      ? "COMPOSIO_API_KEY is required. Run /composio-api-key to enter your Composio API key for this extension, or set COMPOSIO_API_KEY in the environment."
+      : `${label} is required. Check the Composio x Pi extension configuration.`,
   );
 }
 

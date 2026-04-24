@@ -1,17 +1,32 @@
 import { describe, expect, test } from "bun:test";
 
-describe("extension entrypoint", () => {
-  test("registers only runtime tools in worktree mode", async () => {
-    process.env.COMPOSIO_PI_MODE = "worktree";
-    const registered: string[] = [];
+function createMockPi() {
+  const registered: string[] = [];
+  const commands: string[] = [];
 
-    const mod = await import("../src/index.js");
-    mod.default({
+  return {
+    registered,
+    commands,
+    pi: {
+      registerCommand(name: string) {
+        commands.push(name);
+      },
       registerTool(tool: { name: string }) {
         registered.push(tool.name);
       },
-    } as never);
+    },
+  };
+}
 
+describe("extension entrypoint", () => {
+  test("registers only runtime tools in worktree mode", async () => {
+    process.env.COMPOSIO_PI_MODE = "worktree";
+    const { registered, commands, pi } = createMockPi();
+
+    const mod = await import("../src/index.js");
+    mod.default(pi as never);
+
+    expect(commands).toEqual(["composio-api-key"]);
     expect(registered).toEqual([
       "composio_debug_info",
       "composio_search_tools",
@@ -23,15 +38,12 @@ describe("extension entrypoint", () => {
 
   test("registers authoring tools when authoring mode is enabled", async () => {
     process.env.COMPOSIO_PI_MODE = "authoring";
-    const registered: string[] = [];
+    const { registered, commands, pi } = createMockPi();
 
     const mod = await import("../src/index.js");
-    mod.default({
-      registerTool(tool: { name: string }) {
-        registered.push(tool.name);
-      },
-    } as never);
+    mod.default(pi as never);
 
+    expect(commands).toEqual(["composio-api-key"]);
     expect(registered).toEqual([
       "composio_debug_info",
       "composio_search_tools",
