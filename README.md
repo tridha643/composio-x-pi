@@ -43,19 +43,33 @@ bun run build
 npm publish
 ```
 
-## Environment
+## Configuration
 
-Required for Composio SDK calls:
+This extension is explicitly API-key based. Running `composio login` in a shell is not used by the Pi extension; the extension only reads a Composio API key that you provide directly.
 
-- `COMPOSIO_API_KEY`
-- `COMPOSIO_USER_ID`
+Recommended setup inside Pi:
 
-Optional:
+```text
+/composio-api-key
+```
+
+The command prompts for your key and stores it in `~/.pi/agent/extensions/composio-x-pi.json` with file mode `0600`. You can also pass the key as an argument (`/composio-api-key <key>`), but the interactive prompt avoids leaving the key in chat history.
+
+Environment override:
+
+- `COMPOSIO_API_KEY` — if set, this takes precedence over the stored key.
+- `COMPOSIO_USER_ID` — optional; defaults to `default` when omitted.
+
+Optional environment variables:
 
 - `COMPOSIO_PI_MODE=authoring|worktree` — defaults to `worktree`; `authoring` enables trigger-authoring tools.
 - `COMPOSIO_PI_IPC_SOCK` — override the local Unix socket path used by `save_automation_local`.
 - `COMPOSIO_PI_WEBHOOK_TEST_URL` — endpoint used by `test_webhook_delivery` to fire a local test webhook.
 - `COMPOSIO_PI_EVENT_POLL_URL` — endpoint used by `test_webhook_delivery` to poll for received events.
+
+## Commands
+
+- `/composio-api-key` — securely prompt for and store the Composio API key used by this extension.
 
 ## Tools
 
