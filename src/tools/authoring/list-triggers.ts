@@ -20,7 +20,7 @@ export function listTriggersTool(deps: {
     label: "Composio List Triggers",
     description: "List triggers owned by the configured Composio user.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.listTriggers ??
         ((filters: Record<string, unknown>) => callComposioMethod("triggers.list", filters));

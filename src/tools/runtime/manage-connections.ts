@@ -21,7 +21,7 @@ export function manageConnectionsTool(deps: {
     description:
       "Inspect or create Composio connections for an app, including OAuth links when a connection is missing.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke = deps.executeMetaTool ?? executeMetaTool;
       const response = await withProgress(
         () => invoke("COMPOSIO_MANAGE_CONNECTIONS", params as Record<string, unknown>),

@@ -5,7 +5,7 @@ import { authoringTools } from "./tools/authoring/index.js";
 import { debugInfoTool } from "./tools/debug/debug-info.js";
 import { runtimeTools } from "./tools/runtime/index.js";
 
-export default function registerConstellagentExtension(pi: ExtensionAPI): void {
+export default function registerComposioPiExtension(pi: ExtensionAPI): void {
   const mode = getMode();
 
   pi.registerTool(debugInfoTool(mode) as never);

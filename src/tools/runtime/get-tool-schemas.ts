@@ -18,7 +18,7 @@ export function getToolSchemasTool(deps: {
     label: "Composio Get Tool Schemas",
     description: "Fetch the JSON schemas for one or more Composio tools.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke = deps.executeMetaTool ?? executeMetaTool;
       const response = await withProgress(
         () =>

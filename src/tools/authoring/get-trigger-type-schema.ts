@@ -18,7 +18,7 @@ export function getTriggerTypeSchemaTool(deps: {
     label: "Composio Get Trigger Type Schema",
     description: "Fetch the config schema for a single Composio trigger type.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.getTriggerType ??
         ((slug: string) =>

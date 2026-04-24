@@ -37,7 +37,7 @@ const server = createServer((socket) => {
 });
 
 server.listen(socketPath, () => {
-  console.log(`Constellagent IPC stub listening on ${socketPath}`);
+  console.log(`Composio Pi IPC stub listening on ${socketPath}`);
 });
 
 const shutdown = async () => {

@@ -1,7 +1,12 @@
 {
-  "name": "@constellagent/pi-extension",
+  "name": "composio-x-pi",
   "version": "0.0.1",
-  "description": "Constellagent Pi extension for Composio-backed runtime and authoring tools.",
+  "description": "Pi extension that exposes Composio-backed runtime and authoring tools.",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "composio"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -13,6 +18,11 @@
     "src",
     "README.md"
   ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
   "scripts": {
     "build": "bun build src/index.ts --target bun --format esm --outdir dist",
     "typecheck": "tsc --noEmit",

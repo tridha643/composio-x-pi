@@ -20,7 +20,7 @@ export function toggleTriggerTool(deps: {
     label: "Composio Toggle Trigger",
     description: "Enable or disable a Composio trigger by ID.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const enableTrigger =
         deps.enableTrigger ?? ((triggerId: string) => callComposioMethod("triggers.enable", triggerId));
       const disableTrigger =

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 describe("extension entrypoint", () => {
   test("registers only runtime tools in worktree mode", async () => {
-    process.env.CONSTELLAGENT_MODE = "worktree";
+    process.env.COMPOSIO_PI_MODE = "worktree";
     const registered: string[] = [];
 
     const mod = await import("../src/index.js");
@@ -22,7 +22,7 @@ describe("extension entrypoint", () => {
   });
 
   test("registers authoring tools when authoring mode is enabled", async () => {
-    process.env.CONSTELLAGENT_MODE = "authoring";
+    process.env.COMPOSIO_PI_MODE = "authoring";
     const registered: string[] = [];
 
     const mod = await import("../src/index.js");

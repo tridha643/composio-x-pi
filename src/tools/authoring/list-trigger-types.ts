@@ -20,7 +20,7 @@ export function listTriggerTypesTool(deps: {
     label: "Composio List Trigger Types",
     description: "List trigger types available in the configured Composio account.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.listTriggerTypes ??
         ((filters: Record<string, unknown>) =>

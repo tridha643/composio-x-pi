@@ -34,7 +34,7 @@ function requireConfiguredValue(value: string | undefined, label: string): strin
 
   throw new UserFacingError(
     "MISSING_CONFIG",
-    `${label} is required. Check the Constellagent Pi extension environment configuration.`,
+    `${label} is required. Check the Composio x Pi extension environment configuration.`,
   );
 }
 

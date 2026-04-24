@@ -14,14 +14,14 @@ type JsonRpcResponse = {
 };
 
 export function resolveIpcSocketPath(env: NodeJS.ProcessEnv = process.env): string {
-  const override = env.CONSTELLAGENT_IPC_SOCK?.trim();
+  const override = env.COMPOSIO_PI_IPC_SOCK?.trim();
   if (override) {
     return override;
   }
 
   const runtimeDir = env.XDG_RUNTIME_DIR?.trim();
   if (runtimeDir) {
-    return `${runtimeDir}/constellagent.sock`;
+    return `${runtimeDir}/composio-pi.sock`;
   }
 
   const uid =
@@ -31,10 +31,10 @@ export function resolveIpcSocketPath(env: NodeJS.ProcessEnv = process.env): stri
         ? Number(env.UID)
         : "unknown";
 
-  return `/tmp/constellagent-${uid}.sock`;
+  return `/tmp/composio-pi-${uid}.sock`;
 }
 
-export async function callConstellagentRpc<T = unknown>(
+export async function callComposioPiRpc<T = unknown>(
   method: string,
   params: Record<string, unknown>,
   options: {
@@ -69,7 +69,7 @@ export async function callConstellagentRpc<T = unknown>(
         reject(
           new UserFacingError(
             "IPC_TIMEOUT",
-            `Timed out waiting for Constellagent IPC response on ${socketPath}.`,
+            `Timed out waiting for Composio Pi IPC response on ${socketPath}.`,
           ),
         );
       });
@@ -97,7 +97,7 @@ export async function callConstellagentRpc<T = unknown>(
                 reject(
                   new UserFacingError(
                     message.error.code ?? "IPC_REMOTE_ERROR",
-                    message.error.message ?? "Constellagent IPC request failed.",
+                    message.error.message ?? "Composio Pi IPC request failed.",
                     message.error.details,
                   ),
                 );
@@ -119,7 +119,7 @@ export async function callConstellagentRpc<T = unknown>(
         reject(
           new UserFacingError(
             "IPC_UNAVAILABLE",
-            `Constellagent IPC socket is unavailable at ${socketPath}.`,
+            `Composio Pi IPC socket is unavailable at ${socketPath}.`,
             { cause: error.message },
           ),
         );

@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
-import { callConstellagentRpc, resolveIpcSocketPath } from "../../lib/ipc.js";
+import { callComposioPiRpc, resolveIpcSocketPath } from "../../lib/ipc.js";
 import { LooseObject, createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 
 const parameters = Type.Object({
@@ -21,13 +21,13 @@ export function saveAutomationLocalTool(deps: {
   return createTool<SaveAutomationLocalParams>({
     name: "save_automation_local",
     label: "Save Automation Local",
-    description: "Persist the automation definition to the local Constellagent main-process store.",
+    description: "Persist the automation definition to a local host application over the Composio x Pi IPC socket.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.saveAutomation ??
         ((payload: Record<string, unknown>) =>
-          callConstellagentRpc("saveAutomationLocal", payload, {
+          callComposioPiRpc("saveAutomationLocal", payload, {
             socketPath: resolveIpcSocketPath(),
           }));
 

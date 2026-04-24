@@ -23,7 +23,7 @@ export function createTriggerTool(deps: {
     label: "Composio Create Trigger",
     description: "Create a Composio trigger for the configured user.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.createTrigger ??
         ((input) => {

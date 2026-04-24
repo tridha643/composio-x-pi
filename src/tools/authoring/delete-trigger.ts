@@ -18,7 +18,7 @@ export function deleteTriggerTool(deps: {
     label: "Composio Delete Trigger",
     description: "Delete a Composio trigger by ID.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.deleteTrigger ?? ((triggerId: string) => callComposioMethod("triggers.delete", triggerId));
       const response = await withProgress(() => invoke(params.triggerId), onUpdate);
