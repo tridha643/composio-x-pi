@@ -1,12 +1,12 @@
 import { Type } from "@sinclair/typebox";
 
 import { getComposioConfig } from "../../composio-client.js";
-import type { ConstellagentMode } from "../../mode.js";
+import type { ComposioPiMode } from "../../mode.js";
 import { createTool, textResult } from "../../lib/toolkit.js";
 import { authoringToolNames } from "../authoring/index.js";
 import { runtimeToolNames } from "../runtime/index.js";
 
-export function debugInfoTool(mode: ConstellagentMode) {
+export function debugInfoTool(mode: ComposioPiMode) {
   return createTool({
     name: "composio_debug_info",
     label: "Composio Debug Info",

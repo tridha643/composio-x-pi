@@ -23,7 +23,7 @@ function requireEnvUrl(name: string): string {
 
   throw new UserFacingError(
     "MISSING_CONFIG",
-    `${name} is required to test webhook delivery. Configure the Constellagent local test endpoints.`,
+    `${name} is required to test webhook delivery. Configure the Composio Pi local test endpoints.`,
   );
 }
 
@@ -84,12 +84,12 @@ export function testWebhookDeliveryTool(deps: {
     label: "Test Webhook Delivery",
     description: "Trigger a local webhook smoke test and poll for the resulting event delivery.",
     parameters,
-    async execute(_toolCallId, params, onUpdate, _ctx, signal) {
+    async execute(_toolCallId, params, signal, onUpdate) {
       const fireTestDelivery =
         deps.fireTestDelivery ??
         ((payload: JsonRecord, abortSignal?: AbortSignal) =>
           fetchJson(
-            requireEnvUrl("CONSTELLAGENT_WEBHOOK_TEST_URL"),
+            requireEnvUrl("COMPOSIO_PI_WEBHOOK_TEST_URL"),
             {
               method: "POST",
               body: JSON.stringify(payload),
@@ -100,7 +100,7 @@ export function testWebhookDeliveryTool(deps: {
       const pollForDelivery =
         deps.pollForDelivery ??
         ((input: { triggerId: string; deliveryId?: string }, abortSignal?: AbortSignal) => {
-          const url = new URL(requireEnvUrl("CONSTELLAGENT_EVENT_POLL_URL"));
+          const url = new URL(requireEnvUrl("COMPOSIO_PI_EVENT_POLL_URL"));
           url.searchParams.set("triggerId", input.triggerId);
           if (input.deliveryId) {
             url.searchParams.set("deliveryId", input.deliveryId);

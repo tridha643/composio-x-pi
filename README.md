@@ -1,38 +1,44 @@
-# Constellagent Pi Extension
+# Composio x Pi Extension
 
-Pi extension for Constellagent that exposes Composio runtime tools in every worktree session and authoring tools when Pi is embedded for NL-to-trigger flows.
+Pi package that installs a Pi extension for Composio-backed runtime and authoring tools.
 
 ## Install
 
+Install from GitHub:
+
 ```bash
+pi install git:github.com/tridha643/composio-x-pi
+```
+
+Install from a local checkout during development:
+
+```bash
+cd /path/to/composio-x-pi
 bun install
+pi install /path/to/composio-x-pi
 ```
 
-During development, point Pi at the source entrypoint:
-
-```ts
-additionalExtensionPaths: ["/absolute/path/to/constellagent-pi-extension/src/index.ts"];
-```
-
-For a built artifact:
+Try the extension for one Pi run without adding it to settings:
 
 ```bash
-bun run build
+pi -e /path/to/composio-x-pi/src/index.ts
 ```
+
+After editing an installed local checkout, use `/reload` inside Pi.
 
 ## Environment
 
-Required:
+Required for Composio SDK calls:
 
 - `COMPOSIO_API_KEY`
 - `COMPOSIO_USER_ID`
 
 Optional:
 
-- `CONSTELLAGENT_MODE=authoring|worktree` and defaults to `worktree`
-- `CONSTELLAGENT_IPC_SOCK` to override the local Unix socket path
-- `CONSTELLAGENT_WEBHOOK_TEST_URL` for `test_webhook_delivery`
-- `CONSTELLAGENT_EVENT_POLL_URL` for `test_webhook_delivery`
+- `COMPOSIO_PI_MODE=authoring|worktree` — defaults to `worktree`; `authoring` enables trigger-authoring tools.
+- `COMPOSIO_PI_IPC_SOCK` — override the local Unix socket path used by `save_automation_local`.
+- `COMPOSIO_PI_WEBHOOK_TEST_URL` — endpoint used by `test_webhook_delivery` to fire a local test webhook.
+- `COMPOSIO_PI_EVENT_POLL_URL` — endpoint used by `test_webhook_delivery` to poll for received events.
 
 ## Tools
 
@@ -58,6 +64,8 @@ Authoring-only:
 ## Local scripts
 
 - `bun test`
+- `bun run typecheck`
+- `bun run build`
 - `bun run test:integration`
 - `bun run dev:pi`
 - `bun run dev:ipc-stub`

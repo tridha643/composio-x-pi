@@ -19,7 +19,7 @@ export function searchToolsTool(deps: {
     label: "Composio Search Tools",
     description: "Search Composio tools using a natural-language query.",
     parameters,
-    async execute(_toolCallId, params, onUpdate) {
+    async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke = deps.executeMetaTool ?? executeMetaTool;
       const response = await withProgress(
         () =>

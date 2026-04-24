@@ -21,9 +21,9 @@ export type ToolUpdateFn = ((update: ToolUpdate) => unknown | Promise<unknown>) 
 export type ToolExecute<TParams> = (
   toolCallId: string,
   params: TParams,
+  signal?: AbortSignal,
   onUpdate?: ToolUpdateFn,
   ctx?: unknown,
-  signal?: AbortSignal,
 ) => Promise<ToolResult> | ToolResult;
 
 export type PiToolDefinition<TParams = unknown> = {
@@ -108,9 +108,9 @@ export function createTool<TParams>(
 ): PiToolDefinition<TParams> {
   return {
     ...definition,
-    async execute(toolCallId, params, onUpdate, ctx, signal) {
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
       try {
-        return await definition.execute(toolCallId, params, onUpdate, ctx, signal);
+        return await definition.execute(toolCallId, params, signal, onUpdate, ctx);
       } catch (error) {
         throw toUserFacingError(error);
       }
