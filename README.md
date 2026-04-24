@@ -50,15 +50,14 @@ This extension is explicitly API-key based. Running `composio login` in a shell 
 Recommended setup inside Pi:
 
 ```text
-/composio-api-key
+/composio-init
 ```
 
-The command prompts for your key and stores it in `~/.pi/agent/extensions/composio-x-pi.json` with file mode `0600`. You can also pass the key as an argument (`/composio-api-key <key>`), but the interactive prompt avoids leaving the key in chat history.
+The command prompts for your key and stores it in `~/.pi/agent/extensions/composio-x-pi.json` with file mode `0600`. You can also pass the key as an argument (`/composio-init <key>`), but the interactive prompt avoids leaving the key in chat history.
 
 Environment override:
 
 - `COMPOSIO_API_KEY` — if set, this takes precedence over the stored key.
-- `COMPOSIO_USER_ID` — optional; defaults to `default` when omitted.
 
 Optional environment variables:
 
@@ -69,7 +68,7 @@ Optional environment variables:
 
 ## Commands
 
-- `/composio-api-key` — securely prompt for and store the Composio API key used by this extension.
+- `/composio-init` — securely prompt for and store the Composio API key used by this extension.
 
 ## Tools
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import { createTriggerTool } from "../src/tools/authoring/create-trigger.js";
 import { deleteTriggerTool } from "../src/tools/authoring/delete-trigger.js";
@@ -10,10 +10,6 @@ import { testWebhookDeliveryTool } from "../src/tools/authoring/test-webhook-del
 import { toggleTriggerTool } from "../src/tools/authoring/toggle-trigger.js";
 
 describe("authoring tools", () => {
-  beforeEach(() => {
-    process.env.COMPOSIO_USER_ID = "authoring_user";
-  });
-
   test("composio_list_trigger_types returns the expected result shape", async () => {
     const tool = listTriggerTypesTool({
       listTriggerTypes: async () => ({
@@ -66,7 +62,6 @@ describe("authoring tools", () => {
         triggerId: "trg_123",
         input: {
           slug: "GITHUB_COMMIT_EVENT",
-          userId: "authoring_user",
           triggerConfig: { owner: "acme", repo: "backend" },
         },
       },

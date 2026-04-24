@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
-import { callComposioMethod, getRequiredUserId } from "../../composio-client.js";
+import { callComposioMethod } from "../../composio-client.js";
 import { createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 
 const parameters = Type.Object({
@@ -18,17 +18,16 @@ export function listTriggersTool(deps: {
   return createTool<ListTriggersParams>({
     name: "composio_list_triggers",
     label: "Composio List Triggers",
-    description: "List triggers owned by the configured Composio user.",
+    description: "List configured Composio triggers.",
     parameters,
     async execute(_toolCallId, params, _signal, onUpdate) {
       const invoke =
         deps.listTriggers ??
-        ((filters: Record<string, unknown>) => callComposioMethod("triggers.list", filters));
+        ((filters: Record<string, unknown>) => callComposioMethod("triggers.listActive", filters));
 
       const response = await withProgress(
         () =>
           invoke({
-            userId: getRequiredUserId(),
             ...(params.limit === undefined ? {} : { limit: params.limit }),
             ...(params.active === undefined ? {} : { active: params.active }),
             ...(params.triggerTypeSlug === undefined

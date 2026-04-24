@@ -23,7 +23,7 @@ export function getToolSchemasTool(deps: {
       const response = await withProgress(
         () =>
           invoke("COMPOSIO_GET_TOOL_SCHEMAS", {
-            toolSlugs: params.toolSlugs,
+            tool_slugs: params.toolSlugs,
           }),
         onUpdate,
       );

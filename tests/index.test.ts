@@ -1,18 +1,18 @@
 import { describe, expect, test } from "bun:test";
 
 function createMockPi() {
-  const registered: string[] = [];
-  const commands: string[] = [];
+  const registeredTools: string[] = [];
+  const registeredCommands: string[] = [];
 
   return {
-    registered,
-    commands,
+    registeredTools,
+    registeredCommands,
     pi: {
-      registerCommand(name: string) {
-        commands.push(name);
-      },
       registerTool(tool: { name: string }) {
-        registered.push(tool.name);
+        registeredTools.push(tool.name);
+      },
+      registerCommand(name: string) {
+        registeredCommands.push(name);
       },
     },
   };
@@ -21,13 +21,13 @@ function createMockPi() {
 describe("extension entrypoint", () => {
   test("registers only runtime tools in worktree mode", async () => {
     process.env.COMPOSIO_PI_MODE = "worktree";
-    const { registered, commands, pi } = createMockPi();
+    const { pi, registeredTools, registeredCommands } = createMockPi();
 
     const mod = await import("../src/index.js");
     mod.default(pi as never);
 
-    expect(commands).toEqual(["composio-api-key"]);
-    expect(registered).toEqual([
+    expect(registeredCommands).toEqual(["composio-init"]);
+    expect(registeredTools).toEqual([
       "composio_debug_info",
       "composio_search_tools",
       "composio_get_tool_schemas",
@@ -38,13 +38,13 @@ describe("extension entrypoint", () => {
 
   test("registers authoring tools when authoring mode is enabled", async () => {
     process.env.COMPOSIO_PI_MODE = "authoring";
-    const { registered, commands, pi } = createMockPi();
+    const { pi, registeredTools, registeredCommands } = createMockPi();
 
     const mod = await import("../src/index.js");
     mod.default(pi as never);
 
-    expect(commands).toEqual(["composio-api-key"]);
-    expect(registered).toEqual([
+    expect(registeredCommands).toEqual(["composio-init"]);
+    expect(registeredTools).toEqual([
       "composio_debug_info",
       "composio_search_tools",
       "composio_get_tool_schemas",

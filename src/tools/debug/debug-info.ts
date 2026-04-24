@@ -10,7 +10,7 @@ export function debugInfoTool(mode: ComposioPiMode) {
   return createTool({
     name: "composio_debug_info",
     label: "Composio Debug Info",
-    description: "Inspect extension mode, API-key configuration status, configured user identity, and registered tool names.",
+    description: "Inspect extension mode, API key presence, API key source, and registered tool names.",
     parameters: Type.Object({}),
     async execute() {
       const config = getComposioConfig();
@@ -18,12 +18,10 @@ export function debugInfoTool(mode: ComposioPiMode) {
         mode === "authoring"
           ? ["composio_debug_info", ...runtimeToolNames, ...authoringToolNames]
           : ["composio_debug_info", ...runtimeToolNames];
-
       const details = {
         mode,
         registeredTools,
-        registeredCommands: ["composio-api-key"],
-        composioUserId: config.userId ?? null,
+        registeredCommands: ["composio-init"],
         apiKeyPresent: config.apiKeyPresent,
         apiKeySource: config.apiKeySource,
       };
