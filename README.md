@@ -4,13 +4,19 @@ Pi package that installs a Pi extension for Composio-backed runtime and authorin
 
 ## Install
 
-Install from GitHub:
+Install the published npm package with Pi:
 
 ```bash
-pi install git:github.com/tridha643/composio-x-pi
+pi install npm:composio-x-pi
 ```
 
-Install from a local checkout during development:
+For a pinned version:
+
+```bash
+pi install npm:composio-x-pi@0.0.1
+```
+
+During development, install from a local checkout:
 
 ```bash
 cd /path/to/composio-x-pi
@@ -25,6 +31,17 @@ pi -e /path/to/composio-x-pi/src/index.ts
 ```
 
 After editing an installed local checkout, use `/reload` inside Pi.
+
+## Publishing
+
+This package is intended to be installed through Pi's npm package source, so releases should be published to npm under the `composio-x-pi` package name:
+
+```bash
+bun run test
+bun run typecheck
+bun run build
+npm publish
+```
 
 ## Environment
 

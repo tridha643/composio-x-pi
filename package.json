@@ -7,6 +7,18 @@
     "pi-extension",
     "composio"
   ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tridha643/composio-x-pi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tridha643/composio-x-pi/issues"
+  },
+  "homepage": "https://github.com/tridha643/composio-x-pi#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
