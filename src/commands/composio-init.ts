@@ -21,7 +21,7 @@ export async function handleComposioInitCommand(
 
   ctx.ui.notify(`Composio API key saved to ${getComposioConfigPath()}.`, "info");
 }
-
+ 
 export function registerComposioInitCommand(pi: ExtensionAPI): void {
   pi.registerCommand("composio-init", {
     description: "Enter and store a Composio API key for the Composio extension",
