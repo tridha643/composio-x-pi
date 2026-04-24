@@ -29,7 +29,14 @@ export function listTriggerTypesTool(deps: {
             filters,
           ));
 
-      const response = await withProgress(() => invoke(params as Record<string, unknown>), onUpdate);
+      const response = await withProgress(
+        () =>
+          invoke({
+            ...(params.app === undefined ? {} : { toolkits: [params.app] }),
+            ...(params.limit === undefined ? {} : { limit: params.limit }),
+          }),
+        onUpdate,
+      );
 
       return textResult(summarizeJson("Available Composio trigger types.", response), {
         filters: params,

@@ -5,10 +5,11 @@ type JsonRecord = Record<string, unknown>;
 
 export type ComposioConfig = {
   apiKey?: string;
-  userId?: string;
   apiKeyPresent: boolean;
   apiKeySource: "env" | "stored" | null;
 };
+
+const DEFAULT_COMPOSIO_ENTITY = "default";
 
 let composioClientPromise: Promise<unknown> | null = null;
 let toolRouterSessionPromise: Promise<unknown> | null = null;
@@ -18,11 +19,9 @@ export function getComposioConfig(env: NodeJS.ProcessEnv = process.env): Composi
   const envApiKey = env.COMPOSIO_API_KEY?.trim();
   const storedApiKey = stored.apiKey?.trim();
   const apiKey = envApiKey || storedApiKey;
-  const userId = env.COMPOSIO_USER_ID?.trim() || stored.userId || "default";
 
   return {
     apiKey,
-    userId,
     apiKeyPresent: Boolean(apiKey),
     apiKeySource: envApiKey ? "env" : storedApiKey ? "stored" : null,
   };
@@ -47,7 +46,7 @@ function requireConfiguredValue(value: string | undefined, label: string): strin
   throw new UserFacingError(
     "MISSING_CONFIG",
     label === "COMPOSIO_API_KEY"
-      ? "COMPOSIO_API_KEY is required. Run /composio-api-key to enter your Composio API key for this extension, or set COMPOSIO_API_KEY in the environment."
+      ? "COMPOSIO_API_KEY is required. Run /composio-init to enter your Composio API key for this extension, or set COMPOSIO_API_KEY in the environment."
       : `${label} is required. Check the Composio x Pi extension configuration.`,
   );
 }
@@ -161,12 +160,9 @@ export async function callFirstAvailableComposioMethod<T = unknown>(
 
 export async function getToolRouterSession(): Promise<unknown> {
   const client = await getComposioClient();
-  const { userId } = getComposioConfig();
-  const resolvedUserId = requireConfiguredValue(userId, "COMPOSIO_USER_ID");
-
   if (!toolRouterSessionPromise) {
     const { parent, method } = getMethod(client, "create");
-    toolRouterSessionPromise = Promise.resolve(method.call(parent, { userId: resolvedUserId }));
+    toolRouterSessionPromise = Promise.resolve(method.call(parent, DEFAULT_COMPOSIO_ENTITY));
   }
 
   return toolRouterSessionPromise;
@@ -176,12 +172,5 @@ export async function executeMetaTool<T = unknown>(slug: string, input: JsonReco
   const session = await getToolRouterSession();
   const { parent, method } = getMethod(session, "execute");
 
-  return (await method.call(parent, {
-    slug,
-    arguments: input,
-  })) as T;
-}
-
-export function getRequiredUserId(): string {
-  return requireConfiguredValue(getComposioConfig().userId, "COMPOSIO_USER_ID");
+  return (await method.call(parent, slug, input)) as T;
 }

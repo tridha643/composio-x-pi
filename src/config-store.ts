@@ -6,7 +6,6 @@ import { getAgentDir } from "@mariozechner/pi-coding-agent";
 
 export type StoredComposioConfig = {
   apiKey?: string;
-  userId?: string;
 };
 
 const CONFIG_PATH = join(getAgentDir(), "extensions", "composio-x-pi.json");
@@ -31,11 +30,9 @@ export function readStoredComposioConfig(): StoredComposioConfig {
     }
 
     const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey.trim() : undefined;
-    const userId = typeof parsed.userId === "string" ? parsed.userId.trim() : undefined;
 
     return {
       apiKey: apiKey || undefined,
-      userId: userId || undefined,
     };
   } catch {
     return {};

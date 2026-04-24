@@ -31,11 +31,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  const userId = process.env.COMPOSIO_USER_ID?.trim();
-  if (!userId) {
-    throw new Error("COMPOSIO_USER_ID is required for the integration test.");
-  }
-
   const triggerSlug = process.env.COMPOSIO_TEST_TRIGGER_SLUG?.trim();
   if (!triggerSlug) {
     throw new Error("COMPOSIO_TEST_TRIGGER_SLUG is required for the integration test.");
