@@ -1,6 +1,6 @@
 # Composio x Pi Extension
 
-Pi package that installs a Pi extension for Composio-backed runtime and authoring tools.
+Pi package that installs a Pi extension for Composio-backed runtime and trigger-authoring tools.
 
 ## Install
 
@@ -61,10 +61,7 @@ Environment override:
 
 Optional environment variables:
 
-- `COMPOSIO_PI_MODE=authoring|worktree` — defaults to `worktree`; `authoring` enables trigger-authoring tools.
-- `COMPOSIO_PI_IPC_SOCK` — override the local Unix socket path used by `save_automation_local`.
-- `COMPOSIO_PI_WEBHOOK_TEST_URL` — endpoint used by `test_webhook_delivery` to fire a local test webhook.
-- `COMPOSIO_PI_EVENT_POLL_URL` — endpoint used by `test_webhook_delivery` to poll for received events.
+- `COMPOSIO_USER_ID` — defaults to `default` when omitted.
 
 ## Commands
 
@@ -72,24 +69,33 @@ Optional environment variables:
 
 ## Tools
 
-Always registered:
+All tools are registered by default:
 
 - `composio_debug_info`
 - `composio_search_tools`
 - `composio_get_tool_schemas`
 - `composio_execute_tool`
 - `composio_manage_connections`
-
-Authoring-only:
-
 - `composio_list_trigger_types`
 - `composio_get_trigger_type_schema`
 - `composio_create_trigger`
 - `composio_list_triggers`
-- `composio_toggle_trigger`
 - `composio_delete_trigger`
-- `test_webhook_delivery`
-- `save_automation_local`
+- `save_automation_definition`
+
+### Automation JSON handoff
+
+`save_automation_definition` writes automation metadata for the host application to read.
+
+By default it writes to:
+
+```text
+.composio/automations.json
+```
+
+Pass `filePath` to write a different JSON file. There is no environment-variable override for this path.
+
+The file contains a JSON array of automation definitions and the tool upserts by `triggerId`.
 
 ## Local scripts
 
@@ -98,6 +104,41 @@ Authoring-only:
 - `bun run build`
 - `bun run test:integration`
 - `bun run dev:pi`
-- `bun run dev:ipc-stub`
 
-`bun run dev:pi` loads the extension from `src/index.ts` through Pi's embedding API. `bun run dev:ipc-stub` starts a JSON-line Unix socket server that accepts `saveAutomationLocal` requests for local testing.
+`bun run dev:pi` loads the extension from `src/index.ts` through Pi's embedding API.
+
+## Verification
+
+Automated checks before handoff or release:
+
+```bash
+bun run test
+bun run typecheck
+bun run build
+```
+
+Integration test with real Composio credentials/config:
+
+```bash
+COMPOSIO_API_KEY_TEST=...
+COMPOSIO_TEST_TRIGGER_SLUG=...
+COMPOSIO_TEST_TRIGGER_CONFIG_JSON='...'
+bun run test:integration
+```
+
+Manual Pi smoke test:
+
+1. Start Pi with the local extension:
+   ```bash
+   pi -e ./src/index.ts
+   ```
+2. Run `/composio-init` and store a test API key.
+3. Run `composio_debug_info` and confirm runtime plus authoring tools are listed.
+4. Run `composio_list_trigger_types` and `composio_get_trigger_type_schema` for a known trigger.
+5. Create a test trigger with `composio_create_trigger`.
+6. Confirm it appears via `composio_list_triggers`.
+7. Save the automation handoff with `save_automation_definition`.
+8. Confirm `.composio/automations.json` contains the expected automation and the host app can read it.
+9. Clean up with `composio_delete_trigger`.
+
+Webhook/ngrok delivery verification belongs to the host app: start the app receiver, expose it through ngrok, create/configure the Composio trigger for that URL, cause a real event, and confirm the app receives it.

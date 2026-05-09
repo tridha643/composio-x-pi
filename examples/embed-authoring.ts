@@ -1,8 +1,6 @@
 import { resolve } from "node:path";
 
 async function main(): Promise<void> {
-  process.env.COMPOSIO_PI_MODE = process.env.COMPOSIO_PI_MODE || "authoring";
-
   const module = (await import("@mariozechner/pi-coding-agent")) as Record<string, unknown>;
   const createAgentSession = module.createAgentSession as
     | ((input: Record<string, unknown>) => Promise<unknown> | unknown)

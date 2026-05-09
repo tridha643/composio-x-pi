@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { createTriggerTool } from "../src/tools/authoring/create-trigger.js";
 import { deleteTriggerTool } from "../src/tools/authoring/delete-trigger.js";
 import { getTriggerTypeSchemaTool } from "../src/tools/authoring/get-trigger-type-schema.js";
 import { listTriggerTypesTool } from "../src/tools/authoring/list-trigger-types.js";
 import { listTriggersTool } from "../src/tools/authoring/list-triggers.js";
-import { saveAutomationLocalTool } from "../src/tools/authoring/save-automation-local.js";
-import { testWebhookDeliveryTool } from "../src/tools/authoring/test-webhook-delivery.js";
-import { toggleTriggerTool } from "../src/tools/authoring/toggle-trigger.js";
+import { saveAutomationDefinitionTool } from "../src/tools/authoring/save-automation-definition.js";
 
 describe("authoring tools", () => {
   test("composio_list_trigger_types returns the expected result shape", async () => {
@@ -84,21 +85,6 @@ describe("authoring tools", () => {
     expect(result.content[0]?.text).toContain("Configured Composio triggers.");
   });
 
-  test("composio_toggle_trigger picks the enabled branch", async () => {
-    const tool = toggleTriggerTool({
-      enableTrigger: async (triggerId) => ({ enabled: triggerId }),
-      disableTrigger: async (triggerId) => ({ disabled: triggerId }),
-    });
-
-    const result = await tool.execute("call_5", { triggerId: "trg_123", enabled: true });
-    expect(result.details).toEqual({
-      triggerId: "trg_123",
-      enabled: true,
-      response: { enabled: "trg_123" },
-    });
-    expect(result.content[0]?.text).toContain("Enabled Composio trigger trg_123.");
-  });
-
   test("composio_delete_trigger returns the expected result shape", async () => {
     const tool = deleteTriggerTool({
       deleteTrigger: async () => ({ deleted: true }),
@@ -112,56 +98,107 @@ describe("authoring tools", () => {
     expect(result.content[0]?.text).toContain("Deleted Composio trigger trg_123.");
   });
 
-  test("save_automation_local sends the expected payload", async () => {
-    const tool = saveAutomationLocalTool({
-      saveAutomation: async (payload) => ({
-        stored: true,
-        payload,
-      }),
-    });
+  test("save_automation_definition creates a JSON handoff file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "composio-x-pi-"));
+    const filePath = join(dir, "nested", "automations.json");
 
-    const result = await tool.execute("call_7", {
-      name: "Linear triage",
-      triggerId: "trg_123",
-      triggerSlug: "LINEAR_ISSUE_CREATED",
-      instructions: "Create a follow-up task.",
-    });
-    expect(result.details).toEqual({
-      automationName: "Linear triage",
-      response: {
-        stored: true,
-        payload: {
+    try {
+      const tool = saveAutomationDefinitionTool();
+      const result = await tool.execute("call_7", {
+        name: "Linear triage",
+        triggerId: "trg_123",
+        triggerSlug: "LINEAR_ISSUE_CREATED",
+        instructions: "Create a follow-up task.",
+        enabled: true,
+        metadata: { owner: "support" },
+        filePath,
+      });
+
+      expect(result.details).toMatchObject({
+        filePath,
+        operation: "inserted",
+        automation: {
           name: "Linear triage",
           triggerId: "trg_123",
           triggerSlug: "LINEAR_ISSUE_CREATED",
           instructions: "Create a follow-up task.",
+          enabled: true,
+          metadata: { owner: "support" },
         },
-      },
-    });
-    expect(result.content[0]?.text).toContain('Saved automation "Linear triage" locally.');
+      });
+      expect(result.content[0]?.text).toContain('Saved automation definition "Linear triage".');
+
+      const saved = JSON.parse(await readFile(filePath, "utf8")) as Array<Record<string, unknown>>;
+      expect(saved).toHaveLength(1);
+      expect(saved[0]).toMatchObject({
+        name: "Linear triage",
+        triggerId: "trg_123",
+        triggerSlug: "LINEAR_ISSUE_CREATED",
+        instructions: "Create a follow-up task.",
+        enabled: true,
+        metadata: { owner: "support" },
+      });
+      expect(typeof saved[0]?.updatedAt).toBe("string");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
-  test("test_webhook_delivery reports success once polling sees an event", async () => {
-    let pollCount = 0;
-    const tool = testWebhookDeliveryTool({
-      fireTestDelivery: async () => ({
-        deliveryId: "delivery_123",
-      }),
-      pollForDelivery: async () => {
-        pollCount += 1;
-        return pollCount === 1 ? { received: false } : { received: true, eventId: "evt_123" };
-      },
-    });
+  test("save_automation_definition upserts by triggerId", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "composio-x-pi-"));
+    const filePath = join(dir, "automations.json");
 
-    const result = await tool.execute("call_8", {
-      triggerId: "trg_123",
-      pollIntervalMs: 1,
-      timeoutMs: 100,
-    });
-    expect(result.details).toEqual({
-      kickoff: { deliveryId: "delivery_123" },
-      poll: { received: true, eventId: "evt_123" },
-    });
-    expect(result.content[0]?.text).toContain("Webhook delivery observed successfully.");
+    try {
+      await writeFile(
+        filePath,
+        `${JSON.stringify(
+          [
+            {
+              name: "Old name",
+              triggerId: "trg_123",
+              triggerSlug: "LINEAR_ISSUE_CREATED",
+              instructions: "Old instructions.",
+              enabled: false,
+              updatedAt: "2026-01-01T00:00:00.000Z",
+            },
+          ],
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
+
+      const tool = saveAutomationDefinitionTool();
+      const result = await tool.execute("call_8", {
+        name: "New name",
+        triggerId: "trg_123",
+        triggerSlug: "LINEAR_ISSUE_CREATED",
+        instructions: "New instructions.",
+        filePath,
+      });
+
+      expect(result.details).toMatchObject({
+        filePath,
+        operation: "updated",
+        automation: {
+          name: "New name",
+          triggerId: "trg_123",
+          triggerSlug: "LINEAR_ISSUE_CREATED",
+          instructions: "New instructions.",
+        },
+      });
+
+      const saved = JSON.parse(await readFile(filePath, "utf8")) as Array<Record<string, unknown>>;
+      expect(saved).toHaveLength(1);
+      expect(saved[0]).toMatchObject({
+        name: "New name",
+        triggerId: "trg_123",
+        triggerSlug: "LINEAR_ISSUE_CREATED",
+        instructions: "New instructions.",
+        enabled: false,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

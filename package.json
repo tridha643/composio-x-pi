@@ -40,8 +40,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:integration": "bun run tests/integration.ts",
-    "dev:pi": "bun run examples/embed-authoring.ts",
-    "dev:ipc-stub": "bun run examples/ipc-stub.ts"
+    "dev:pi": "bun run examples/embed-authoring.ts"
   },
   "dependencies": {
     "@composio/core": "*",

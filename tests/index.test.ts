@@ -18,8 +18,33 @@ function createMockPi() {
   };
 }
 
+const expectedTools = [
+  "composio_debug_info",
+  "composio_search_tools",
+  "composio_get_tool_schemas",
+  "composio_execute_tool",
+  "composio_manage_connections",
+  "composio_list_trigger_types",
+  "composio_get_trigger_type_schema",
+  "composio_create_trigger",
+  "composio_list_triggers",
+  "composio_delete_trigger",
+  "save_automation_definition",
+];
+
 describe("extension entrypoint", () => {
-  test("registers only runtime tools in worktree mode", async () => {
+  test("registers runtime and authoring tools by default", async () => {
+    delete process.env.COMPOSIO_PI_MODE;
+    const { pi, registeredTools, registeredCommands } = createMockPi();
+
+    const mod = await import("../src/index.js");
+    mod.default(pi as never);
+
+    expect(registeredCommands).toEqual(["composio-init"]);
+    expect(registeredTools).toEqual(expectedTools);
+  });
+
+  test("registers authoring tools even when COMPOSIO_PI_MODE is set", async () => {
     process.env.COMPOSIO_PI_MODE = "worktree";
     const { pi, registeredTools, registeredCommands } = createMockPi();
 
@@ -27,37 +52,6 @@ describe("extension entrypoint", () => {
     mod.default(pi as never);
 
     expect(registeredCommands).toEqual(["composio-init"]);
-    expect(registeredTools).toEqual([
-      "composio_debug_info",
-      "composio_search_tools",
-      "composio_get_tool_schemas",
-      "composio_execute_tool",
-      "composio_manage_connections",
-    ]);
-  });
-
-  test("registers authoring tools when authoring mode is enabled", async () => {
-    process.env.COMPOSIO_PI_MODE = "authoring";
-    const { pi, registeredTools, registeredCommands } = createMockPi();
-
-    const mod = await import("../src/index.js");
-    mod.default(pi as never);
-
-    expect(registeredCommands).toEqual(["composio-init"]);
-    expect(registeredTools).toEqual([
-      "composio_debug_info",
-      "composio_search_tools",
-      "composio_get_tool_schemas",
-      "composio_execute_tool",
-      "composio_manage_connections",
-      "composio_list_trigger_types",
-      "composio_get_trigger_type_schema",
-      "composio_create_trigger",
-      "composio_list_triggers",
-      "composio_toggle_trigger",
-      "composio_delete_trigger",
-      "test_webhook_delivery",
-      "save_automation_local",
-    ]);
+    expect(registeredTools).toEqual(expectedTools);
   });
 });
