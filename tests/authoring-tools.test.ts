@@ -144,6 +144,45 @@ describe("authoring tools", () => {
     }
   });
 
+  test("save_automation_definition uses PI_COMPOSIO_AUTOMATIONS_JSON when filePath is omitted", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "composio-x-pi-"));
+    const filePath = join(dir, "global", "composio-automations.json");
+    const previousEnvValue = process.env.PI_COMPOSIO_AUTOMATIONS_JSON;
+    process.env.PI_COMPOSIO_AUTOMATIONS_JSON = filePath;
+
+    try {
+      const tool = saveAutomationDefinitionTool();
+      const result = await tool.execute("call_env", {
+        name: "Global handoff",
+        triggerId: "trg_env",
+        triggerSlug: "GITHUB_COMMIT_EVENT",
+        instructions: "Handle the event globally.",
+      });
+
+      expect(result.details).toMatchObject({
+        filePath,
+        operation: "inserted",
+        automation: {
+          name: "Global handoff",
+          triggerId: "trg_env",
+          triggerSlug: "GITHUB_COMMIT_EVENT",
+          instructions: "Handle the event globally.",
+        },
+      });
+
+      const saved = JSON.parse(await readFile(filePath, "utf8")) as Array<Record<string, unknown>>;
+      expect(saved).toHaveLength(1);
+      expect(saved[0]?.triggerId).toBe("trg_env");
+    } finally {
+      if (previousEnvValue === undefined) {
+        delete process.env.PI_COMPOSIO_AUTOMATIONS_JSON;
+      } else {
+        process.env.PI_COMPOSIO_AUTOMATIONS_JSON = previousEnvValue;
+      }
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("save_automation_definition upserts by triggerId", async () => {
     const dir = await mkdtemp(join(tmpdir(), "composio-x-pi-"));
     const filePath = join(dir, "automations.json");

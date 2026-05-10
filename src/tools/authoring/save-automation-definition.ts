@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
@@ -7,7 +8,8 @@ import type { Static } from "@sinclair/typebox";
 import { UserFacingError } from "../../lib/errors.js";
 import { LooseObject, createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 
-const DEFAULT_AUTOMATIONS_FILE = ".composio/automations.json";
+const AUTOMATIONS_FILE_ENV = "PI_COMPOSIO_AUTOMATIONS_JSON";
+const DEFAULT_AUTOMATIONS_FILE = join(homedir(), ".config", "pi", "composio-automations.json");
 
 const parameters = Type.Object({
   name: Type.String({ minLength: 1 }),
@@ -16,7 +18,13 @@ const parameters = Type.Object({
   instructions: Type.String({ minLength: 1 }),
   enabled: Type.Optional(Type.Boolean()),
   metadata: Type.Optional(LooseObject),
-  filePath: Type.Optional(Type.String({ minLength: 1 })),
+  filePath: Type.Optional(
+    Type.String({
+      minLength: 1,
+      description:
+        "Optional path override for this call. Defaults to PI_COMPOSIO_AUTOMATIONS_JSON or ~/.config/pi/composio-automations.json.",
+    }),
+  ),
 });
 
 export type SaveAutomationDefinitionParams = Static<typeof parameters>;
@@ -60,12 +68,28 @@ async function readExistingAutomations(absolutePath: string): Promise<Automation
   return parsed as AutomationDefinition[];
 }
 
+function expandHomePath(filePath: string): string {
+  if (filePath === "~") {
+    return homedir();
+  }
+
+  if (filePath.startsWith("~/") || filePath.startsWith("~\\")) {
+    return join(homedir(), filePath.slice(2));
+  }
+
+  return filePath;
+}
+
+function getAutomationFilePath(params: SaveAutomationDefinitionParams): string {
+  const envFilePath = process.env[AUTOMATIONS_FILE_ENV]?.trim() || undefined;
+  return expandHomePath(params.filePath ?? envFilePath ?? DEFAULT_AUTOMATIONS_FILE);
+}
+
 async function saveAutomationDefinitionToFile(
   params: SaveAutomationDefinitionParams,
 ): Promise<SaveAutomationResult> {
-  const filePath = params.filePath ?? DEFAULT_AUTOMATIONS_FILE;
-  const absolutePath = resolve(filePath);
-  const existing = await readExistingAutomations(absolutePath);
+  const filePath = resolve(getAutomationFilePath(params));
+  const existing = await readExistingAutomations(filePath);
 
   const existingIndex = existing.findIndex((automation) => automation?.triggerId === params.triggerId);
   const previous = existingIndex >= 0 ? existing[existingIndex] : undefined;
@@ -88,8 +112,8 @@ async function saveAutomationDefinitionToFile(
     existing.push(automation);
   }
 
-  await mkdir(dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
 
   return {
     filePath,
@@ -104,7 +128,7 @@ export function saveAutomationDefinitionTool(deps: {
   return createTool<SaveAutomationDefinitionParams>({
     name: "save_automation_definition",
     label: "Save Automation Definition",
-    description: "Save an automation definition to a JSON handoff file for the host application to read.",
+    description: "Save an automation definition to Pi's global Composio automation JSON handoff file for the host application to read.",
     parameters,
     async execute(_toolCallId, params, _signal, onUpdate) {
       const saveAutomation = deps.saveAutomation ?? saveAutomationDefinitionToFile;
