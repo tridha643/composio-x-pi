@@ -20,6 +20,8 @@ function createMockPi() {
 
 const expectedTools = [
   "composio_debug_info",
+  "composio_signup",
+  "composio_claim",
   "composio_search_tools",
   "composio_get_tool_schemas",
   "composio_execute_tool",
@@ -40,7 +42,7 @@ describe("extension entrypoint", () => {
     const mod = await import("../src/index.js");
     mod.default(pi as never);
 
-    expect(registeredCommands).toEqual(["composio-init"]);
+    expect(registeredCommands).toEqual(["composio-claim"]);
     expect(registeredTools).toEqual(expectedTools);
   });
 
@@ -51,7 +53,7 @@ describe("extension entrypoint", () => {
     const mod = await import("../src/index.js");
     mod.default(pi as never);
 
-    expect(registeredCommands).toEqual(["composio-init"]);
+    expect(registeredCommands).toEqual(["composio-claim"]);
     expect(registeredTools).toEqual(expectedTools);
   });
 });

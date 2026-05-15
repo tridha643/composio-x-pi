@@ -8,23 +8,26 @@ export type StoredComposioConfig = {
   apiKey?: string;
 };
 
-const CONFIG_PATH = join(getAgentDir(), "extensions", "composio-x-pi.json");
+function getConfigPath(): string {
+  return join(getAgentDir(), "extensions", "composio-x-pi.json");
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export function getComposioConfigPath(): string {
-  return CONFIG_PATH;
+  return getConfigPath();
 }
 
 export function readStoredComposioConfig(): StoredComposioConfig {
-  if (!existsSync(CONFIG_PATH)) {
+  const path = getConfigPath();
+  if (!existsSync(path)) {
     return {};
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as unknown;
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
     if (!isRecord(parsed)) {
       return {};
     }
@@ -51,6 +54,7 @@ export async function writeStoredComposioApiKey(apiKey: string): Promise<void> {
     apiKey: trimmedApiKey,
   };
 
-  await mkdir(dirname(CONFIG_PATH), { recursive: true });
-  await writeFile(CONFIG_PATH, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  const path = getConfigPath();
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
 }

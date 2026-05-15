@@ -1,12 +1,13 @@
-import { readStoredComposioConfig, writeStoredComposioApiKey } from "./config-store.js";
+import { readAnonymousUserData } from "./lib/anonymous-user-data.js";
 import { UserFacingError } from "./lib/errors.js";
+import { readStoredComposioConfig } from "./config-store.js";
 
 type JsonRecord = Record<string, unknown>;
 
 export type ComposioConfig = {
   apiKey?: string;
   apiKeyPresent: boolean;
-  apiKeySource: "env" | "stored" | null;
+  apiKeySource: "env" | "signup" | "stored" | null;
 };
 
 const DEFAULT_COMPOSIO_ENTITY = "default";
@@ -15,22 +16,27 @@ let composioClientPromise: Promise<unknown> | null = null;
 let toolRouterSessionPromise: Promise<unknown> | null = null;
 
 export function getComposioConfig(env: NodeJS.ProcessEnv = process.env): ComposioConfig {
-  const stored = readStoredComposioConfig();
   const envApiKey = env.COMPOSIO_API_KEY?.trim();
+  if (envApiKey) {
+    return { apiKey: envApiKey, apiKeyPresent: true, apiKeySource: "env" };
+  }
+
+  const anonymous = readAnonymousUserData();
+  const signupApiKey =
+    typeof anonymous?.composio?.api_key === "string"
+      ? anonymous.composio.api_key.trim()
+      : "";
+  if (signupApiKey) {
+    return { apiKey: signupApiKey, apiKeyPresent: true, apiKeySource: "signup" };
+  }
+
+  const stored = readStoredComposioConfig();
   const storedApiKey = stored.apiKey?.trim();
-  const apiKey = envApiKey || storedApiKey;
+  if (storedApiKey) {
+    return { apiKey: storedApiKey, apiKeyPresent: true, apiKeySource: "stored" };
+  }
 
-  return {
-    apiKey,
-    apiKeyPresent: Boolean(apiKey),
-    apiKeySource: envApiKey ? "env" : storedApiKey ? "stored" : null,
-  };
-}
-
-export async function setComposioApiKey(apiKey: string): Promise<void> {
-  await writeStoredComposioApiKey(apiKey);
-  process.env.COMPOSIO_API_KEY = apiKey.trim();
-  resetComposioSingletons();
+  return { apiKey: undefined, apiKeyPresent: false, apiKeySource: null };
 }
 
 export function resetComposioSingletons(): void {
@@ -46,7 +52,7 @@ function requireConfiguredValue(value: string | undefined, label: string): strin
   throw new UserFacingError(
     "MISSING_CONFIG",
     label === "COMPOSIO_API_KEY"
-      ? "COMPOSIO_API_KEY is required. Run /composio-init to enter your Composio API key for this extension, or set COMPOSIO_API_KEY in the environment."
+      ? "No Composio credentials found. Call the `composio_signup` tool to provision an identity, or set `COMPOSIO_API_KEY` in the environment."
       : `${label} is required. Check the Composio x Pi extension configuration.`,
   );
 }
