@@ -17,7 +17,7 @@ export function debugInfoTool() {
       const details = {
         registeredTools,
         authoringToolsRegistered: true,
-        registeredCommands: ["composio-init"],
+        registeredCommands: ["composio-claim"],
         apiKeyPresent: config.apiKeyPresent,
         apiKeySource: config.apiKeySource,
       };

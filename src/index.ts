@@ -1,12 +1,12 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
-import { registerComposioInitCommand } from "./commands/composio-init.js";
+import { registerComposioClaimCommand } from "./commands/composio-claim.js";
 import { authoringTools } from "./tools/authoring/index.js";
 import { debugInfoTool } from "./tools/debug/debug-info.js";
 import { runtimeTools } from "./tools/runtime/index.js";
 
 export default function registerComposioPiExtension(pi: ExtensionAPI): void {
-  registerComposioInitCommand(pi);
+  registerComposioClaimCommand(pi);
 
   pi.registerTool(debugInfoTool() as never);
 

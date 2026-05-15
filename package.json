@@ -1,6 +1,6 @@
 {
   "name": "composio-x-pi",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Pi extension that exposes Composio-backed runtime and authoring tools.",
   "keywords": [
     "pi-package",
