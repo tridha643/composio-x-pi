@@ -41,7 +41,7 @@ afterEach(() => {
 });
 
 describe("composio_debug_info tool", () => {
-  test("lists composio-claim command and signup/claim tools", async () => {
+  test("lists composio-init/composio-claim commands and signup/claim tools", async () => {
     const tool = debugInfoTool();
     const result = await tool.execute("call_debug_1", {});
     const details = result.details as {
@@ -51,7 +51,7 @@ describe("composio_debug_info tool", () => {
       apiKeySource: string | null;
     };
 
-    expect(details.registeredCommands).toEqual(["composio-claim"]);
+    expect(details.registeredCommands).toEqual(["composio-init", "composio-claim"]);
     expect(details.registeredTools).toContain("composio_signup");
     expect(details.registeredTools).toContain("composio_claim");
     expect(details.registeredTools).toContain("composio_debug_info");

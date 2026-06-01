@@ -68,13 +68,13 @@ describe("getComposioConfig precedence", () => {
     expect(config.apiKeySource).toBe("env");
   });
 
-  test("signup wins over legacy stored when env absent", async () => {
+  test("stored key wins over signup when env absent", async () => {
     await writeAnonymousUserData({ agent_key: "k", composio: { api_key: "ak_signup" } });
     writeLegacyStored("ak_stored");
 
     const config = getComposioConfig();
-    expect(config.apiKey).toBe("ak_signup");
-    expect(config.apiKeySource).toBe("signup");
+    expect(config.apiKey).toBe("ak_stored");
+    expect(config.apiKeySource).toBe("stored");
   });
 
   test("legacy stored is used when env and signup are both absent", () => {
@@ -85,13 +85,12 @@ describe("getComposioConfig precedence", () => {
     expect(config.apiKeySource).toBe("stored");
   });
 
-  test("signup file with empty api_key falls through to legacy stored", async () => {
-    await writeAnonymousUserData({ agent_key: "k", composio: { api_key: "   " } });
-    writeLegacyStored("ak_stored");
+  test("signup is used when stored key is absent", async () => {
+    await writeAnonymousUserData({ agent_key: "k", composio: { api_key: "ak_signup" } });
 
     const config = getComposioConfig();
-    expect(config.apiKey).toBe("ak_stored");
-    expect(config.apiKeySource).toBe("stored");
+    expect(config.apiKey).toBe("ak_signup");
+    expect(config.apiKeySource).toBe("signup");
   });
 
   test("trims whitespace from env values", () => {

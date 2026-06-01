@@ -1,13 +1,13 @@
 import { resolve } from "node:path";
 
 async function main(): Promise<void> {
-  const module = (await import("@mariozechner/pi-coding-agent")) as Record<string, unknown>;
+  const module = (await import("@earendil-works/pi-coding-agent")) as Record<string, unknown>;
   const createAgentSession = module.createAgentSession as
     | ((input: Record<string, unknown>) => Promise<unknown> | unknown)
     | undefined;
 
   if (!createAgentSession) {
-    throw new Error("createAgentSession is not available from @mariozechner/pi-coding-agent.");
+    throw new Error("createAgentSession is not available from @earendil-works/pi-coding-agent.");
   }
 
   const session = (await Promise.resolve(

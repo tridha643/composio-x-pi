@@ -42,7 +42,7 @@ describe("extension entrypoint", () => {
     const mod = await import("../src/index.js");
     mod.default(pi as never);
 
-    expect(registeredCommands).toEqual(["composio-claim"]);
+    expect(registeredCommands).toEqual(["composio-init", "composio-claim"]);
     expect(registeredTools).toEqual(expectedTools);
   });
 
@@ -53,7 +53,7 @@ describe("extension entrypoint", () => {
     const mod = await import("../src/index.js");
     mod.default(pi as never);
 
-    expect(registeredCommands).toEqual(["composio-claim"]);
+    expect(registeredCommands).toEqual(["composio-init", "composio-claim"]);
     expect(registeredTools).toEqual(expectedTools);
   });
 });
