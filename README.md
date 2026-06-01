@@ -45,22 +45,31 @@ npm publish
 
 ## Setup
 
-No setup required. The agent provisions a Composio identity for you on first tool use via the `composio_signup` tool. When a Composio tool fails with a missing-credentials error, the model is instructed to call `composio_signup`, which talks to `https://agents.composio.dev/api/signup` and writes the returned credentials to `~/.composio/anonymous_user_data.json` (mode `0600`).
+No setup is required by default. The agent provisions a Composio identity for you on first tool use via the `composio_signup` tool. When a Composio tool fails with a missing-credentials error, the model is instructed to call `composio_signup`, which talks to `https://agents.composio.dev/api/signup` and writes the returned credentials to `~/.composio/anonymous_user_data.json` (mode `0600`).
+
+If you already have a Composio API key, you can override the auto-provisioned signup credentials:
+
+```text
+/composio-init
+```
+
+The command prompts for your key and stores it in `~/.pi/agent/extensions/composio-x-pi.json` with file mode `0600`. You can also pass the key as an argument (`/composio-init <key>`), but the interactive prompt avoids leaving the key in chat history.
+
+Credential precedence:
+
+1. `COMPOSIO_API_KEY` environment variable
+2. `/composio-init` stored API key
+3. `composio_signup` anonymous credentials
 
 To later hand the auto-provisioned organization over to a human admin, either run `/composio-claim <email>` or ask the agent to call the `composio_claim` tool. Composio sends a 24-hour single-use invite to that email.
-
-Environment override:
-
-- `COMPOSIO_API_KEY` — if set, this takes precedence over the stored credentials (useful for CI and power users who already have a key).
 
 Optional environment variables:
 
 - `COMPOSIO_USER_ID` — defaults to `default` when omitted.
 
-For one release, an existing `~/.pi/agent/extensions/composio-x-pi.json` (from the previous `/composio-init` command) is still honored as a fallback so existing users aren't broken.
-
 ## Commands
 
+- `/composio-init` — securely prompt for and store the Composio API key used by this extension.
 - `/composio-claim <email>` — hand the auto-provisioned Composio org to a human admin (sends a 24-hour invite to the email).
 
 ## Tools
@@ -130,8 +139,8 @@ Manual Pi smoke test:
    ```bash
    pi -e ./src/index.ts
    ```
-2. Ask the agent to run any Composio tool; it will call `composio_signup` automatically on first use.
-3. Run `composio_debug_info` and confirm runtime plus authoring tools are listed (and `apiKeySource` is `"signup"`).
+2. Ask the agent to run any Composio tool; it will call `composio_signup` automatically on first use. Or run `/composio-init` to store an existing Composio API key.
+3. Run `composio_debug_info` and confirm runtime plus authoring tools are listed (and `apiKeySource` is `"signup"`, `"stored"`, or `"env"` depending on setup).
 4. Run `composio_list_trigger_types` and `composio_get_trigger_type_schema` for a known trigger.
 5. Create a test trigger with `composio_create_trigger`.
 6. Confirm it appears via `composio_list_triggers`.

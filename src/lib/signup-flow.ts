@@ -93,6 +93,15 @@ export async function ensureAgentIdentity(
   };
 }
 
+function pickString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+  return "";
+}
+
 export async function claimAgentIdentity(email: string): Promise<ClaimAgentIdentityResult> {
   const trimmed = email.trim();
   if (!trimmed || !EMAIL_PATTERN.test(trimmed)) {
@@ -111,13 +120,28 @@ export async function claimAgentIdentity(email: string): Promise<ClaimAgentIdent
     );
   }
 
-  const response = await claim(agentKey, trimmed);
-  const inviteCode = typeof response.invite_code === "string" ? response.invite_code : "";
-  const orgId = typeof response.org_id === "string" ? response.org_id : "";
+  const response = await claim(agentKey, trimmed) as Record<string, unknown>;
+  const payload = (response.data && typeof response.data === "object")
+    ? response.data as Record<string, unknown>
+    : response;
+
+  const inviteCode = pickString(
+    payload.invite_code,
+    payload.inviteCode,
+    response.invite_code,
+    response.inviteCode,
+  );
+  const orgId = pickString(
+    payload.org_id,
+    payload.orgId,
+    response.org_id,
+    response.orgId,
+  );
+
   if (!inviteCode) {
     throw new UserFacingError(
       "AGENT_CLAIM_FAILED",
-      "Composio claim response did not include an invite_code.",
+      "Composio claim response did not include an invite code.",
       response,
     );
   }

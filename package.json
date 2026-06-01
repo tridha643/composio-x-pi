@@ -1,6 +1,6 @@
 {
   "name": "composio-x-pi",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Pi extension that exposes Composio-backed runtime and authoring tools.",
   "keywords": [
     "pi-package",
@@ -47,10 +47,10 @@
     "@sinclair/typebox": "^0.34.41"
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*"
   },
   "devDependencies": {
-    "@mariozechner/pi-coding-agent": "*",
+    "@earendil-works/pi-coding-agent": "*",
     "bun-types": "^1.3.9",
     "typescript": "^5.8.3"
   }

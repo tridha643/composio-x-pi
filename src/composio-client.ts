@@ -1,6 +1,6 @@
 import { readAnonymousUserData } from "./lib/anonymous-user-data.js";
 import { UserFacingError } from "./lib/errors.js";
-import { readStoredComposioConfig } from "./config-store.js";
+import { readStoredComposioConfig, writeStoredComposioApiKey } from "./config-store.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -21,6 +21,12 @@ export function getComposioConfig(env: NodeJS.ProcessEnv = process.env): Composi
     return { apiKey: envApiKey, apiKeyPresent: true, apiKeySource: "env" };
   }
 
+  const stored = readStoredComposioConfig();
+  const storedApiKey = stored.apiKey?.trim();
+  if (storedApiKey) {
+    return { apiKey: storedApiKey, apiKeyPresent: true, apiKeySource: "stored" };
+  }
+
   const anonymous = readAnonymousUserData();
   const signupApiKey =
     typeof anonymous?.composio?.api_key === "string"
@@ -30,13 +36,13 @@ export function getComposioConfig(env: NodeJS.ProcessEnv = process.env): Composi
     return { apiKey: signupApiKey, apiKeyPresent: true, apiKeySource: "signup" };
   }
 
-  const stored = readStoredComposioConfig();
-  const storedApiKey = stored.apiKey?.trim();
-  if (storedApiKey) {
-    return { apiKey: storedApiKey, apiKeyPresent: true, apiKeySource: "stored" };
-  }
-
   return { apiKey: undefined, apiKeyPresent: false, apiKeySource: null };
+}
+
+export async function setComposioApiKey(apiKey: string): Promise<void> {
+  await writeStoredComposioApiKey(apiKey);
+  process.env.COMPOSIO_API_KEY = apiKey.trim();
+  resetComposioSingletons();
 }
 
 export function resetComposioSingletons(): void {

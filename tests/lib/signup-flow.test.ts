@@ -219,6 +219,24 @@ describe("claimAgentIdentity", () => {
     expect(result.orgId).toBe("org_1");
   });
 
+  test("accepts camelCase claim response", async () => {
+    await writeAnonymousUserData({ agent_key: "k_existing", composio: { api_key: "ak" } });
+    installFetchMock(() => jsonResponse({ inviteCode: "inv_77", orgId: "org_2" }));
+
+    const result = await claimAgentIdentity("admin@example.com");
+    expect(result.inviteCode).toBe("inv_77");
+    expect(result.orgId).toBe("org_2");
+  });
+
+  test("accepts nested data claim response", async () => {
+    await writeAnonymousUserData({ agent_key: "k_existing", composio: { api_key: "ak" } });
+    installFetchMock(() => jsonResponse({ data: { invite_code: "inv_88", org_id: "org_3" } }));
+
+    const result = await claimAgentIdentity("admin@example.com");
+    expect(result.inviteCode).toBe("inv_88");
+    expect(result.orgId).toBe("org_3");
+  });
+
   test("rejects invalid email", async () => {
     await writeAnonymousUserData({ agent_key: "k_existing", composio: { api_key: "ak" } });
     installFetchMock(() => new Response("should not be called", { status: 500 }));
