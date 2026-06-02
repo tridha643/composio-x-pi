@@ -39,6 +39,8 @@
     "build": "bun build src/index.ts --target bun --format esm --outdir dist",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "test:e2e": "bun run tests/e2e-extension.ts",
+    "test:e2e:signup": "bun run tests/e2e-real-signup.ts",
     "test:integration": "bun run tests/integration.ts",
     "dev:pi": "bun run examples/embed-authoring.ts"
   },

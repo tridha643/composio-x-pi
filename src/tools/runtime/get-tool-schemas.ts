@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
-import { executeMetaTool } from "../../composio-client.js";
+import { getComposioSdk } from "../../composio-client.js";
 import { createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 
 const parameters = Type.Object({
@@ -11,7 +11,7 @@ const parameters = Type.Object({
 export type GetToolSchemasParams = Static<typeof parameters>;
 
 export function getToolSchemasTool(deps: {
-  executeMetaTool?: (slug: string, input?: Record<string, unknown>) => Promise<unknown>;
+  getRawTools?: (query: Record<string, unknown>) => Promise<unknown[]>;
 } = {}) {
   return createTool<GetToolSchemasParams>({
     name: "composio_get_tool_schemas",
@@ -19,23 +19,23 @@ export function getToolSchemasTool(deps: {
     description: "Fetch the JSON schemas for one or more Composio tools.",
     parameters,
     async execute(_toolCallId, params, _signal, onUpdate) {
-      const invoke = deps.executeMetaTool ?? executeMetaTool;
-      const response = await withProgress(
-        () =>
-          invoke("COMPOSIO_GET_TOOL_SCHEMAS", {
-            tool_slugs: params.toolSlugs,
-          }),
-        onUpdate,
-      );
+      const invoke =
+        deps.getRawTools ??
+        (async (query: Record<string, unknown>) => {
+          const sdk = await getComposioSdk();
+          return sdk.tools.getRawComposioTools(query);
+        });
+
+      const tools = await withProgress(() => invoke({ tools: params.toolSlugs }), onUpdate);
 
       return textResult(
         summarizeJson(
           `Retrieved Composio schemas for ${params.toolSlugs.length} tool(s).`,
-          response,
+          tools,
         ),
         {
           toolSlugs: params.toolSlugs,
-          response,
+          tools,
         },
       );
     },

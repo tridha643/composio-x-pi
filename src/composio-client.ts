@@ -94,6 +94,55 @@ export async function getComposioClient(): Promise<unknown> {
   return composioClientPromise;
 }
 
+export type ToolExecuteResult = {
+  data: Record<string, unknown>;
+  error: string | null;
+  successful: boolean;
+  logId?: string;
+};
+
+export type ConnectedAccountSummary = {
+  id: string;
+  wordId?: string | null;
+  alias?: string | null;
+  status: string;
+  toolkit: { slug: string };
+};
+
+export type ComposioSdk = {
+  tools: {
+    execute(
+      slug: string,
+      body: {
+        arguments?: Record<string, unknown>;
+        connectedAccountId?: string;
+        userId?: string;
+        dangerouslySkipVersionCheck?: boolean;
+      },
+    ): Promise<ToolExecuteResult>;
+    getRawComposioTools(query: Record<string, unknown>): Promise<unknown[]>;
+  };
+  connectedAccounts: {
+    list(query?: {
+      toolkitSlugs?: string[];
+      userIds?: string[];
+      statuses?: string[];
+    }): Promise<{ items: ConnectedAccountSummary[] }>;
+    update(id: string, params: { alias?: string }): Promise<unknown>;
+  };
+  triggers: {
+    create(
+      userId: string,
+      slug: string,
+      body: { connectedAccountId?: string; triggerConfig?: Record<string, unknown> },
+    ): Promise<unknown>;
+  };
+};
+
+export async function getComposioSdk(): Promise<ComposioSdk> {
+  return (await getComposioClient()) as ComposioSdk;
+}
+
 function getMethod(target: unknown, path: string): { parent: Record<string, unknown>; method: Function } {
   const segments = path.split(".");
   const last = segments.pop();
@@ -177,6 +226,8 @@ export async function getToolRouterSession(): Promise<unknown> {
     toolRouterSessionPromise = Promise.resolve(
       method.call(parent, DEFAULT_COMPOSIO_ENTITY, {
         workbench: { enable: true },
+        manageConnections: { enable: true },
+        multiAccount: { enable: true },
       }),
     );
   }

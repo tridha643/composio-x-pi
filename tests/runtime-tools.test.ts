@@ -11,76 +11,153 @@ import { searchToolsTool } from "../src/tools/runtime/search-tools.js";
 describe("runtime tools", () => {
   test("composio_search_tools returns the expected result shape", async () => {
     const tool = searchToolsTool({
-      executeMetaTool: async () => ({
-        tools: [{ slug: "LINEAR_CREATE_ISSUE", score: 0.98 }],
-      }),
+      getRawTools: async () => [{ slug: "LINEAR_CREATE_ISSUE", score: 0.98 }],
     });
 
     const result = await tool.execute("call_1", { query: "create a Linear issue" });
     expect(result.details).toEqual({
       query: "create a Linear issue",
-      response: {
-        tools: [{ slug: "LINEAR_CREATE_ISSUE", score: 0.98 }],
-      },
+      tools: [{ slug: "LINEAR_CREATE_ISSUE", score: 0.98 }],
     });
     expect(result.content[0]?.text).toContain('Composio tool search results for "create a Linear issue".');
     expect(result.content[0]?.text).toContain('"LINEAR_CREATE_ISSUE"');
   });
 
+  test("composio_search_tools slices to limit client-side", async () => {
+    const tool = searchToolsTool({
+      getRawTools: async () => [{ slug: "A" }, { slug: "B" }, { slug: "C" }],
+    });
+
+    const result = await tool.execute("call_1b", { query: "anything", limit: 2 });
+    expect(result.details).toEqual({
+      query: "anything",
+      tools: [{ slug: "A" }, { slug: "B" }],
+    });
+  });
+
   test("composio_get_tool_schemas returns the expected result shape", async () => {
     const tool = getToolSchemasTool({
-      executeMetaTool: async () => ({
-        LINEAR_CREATE_ISSUE: {
-          input: { type: "object" },
-        },
-      }),
+      getRawTools: async () => [
+        { slug: "LINEAR_CREATE_ISSUE", inputParameters: { type: "object" } },
+      ],
     });
 
     const result = await tool.execute("call_2", { toolSlugs: ["LINEAR_CREATE_ISSUE"] });
     expect(result.details).toEqual({
       toolSlugs: ["LINEAR_CREATE_ISSUE"],
-      response: {
-        LINEAR_CREATE_ISSUE: {
-          input: { type: "object" },
-        },
-      },
+      tools: [{ slug: "LINEAR_CREATE_ISSUE", inputParameters: { type: "object" } }],
     });
     expect(result.content[0]?.text).toContain("Retrieved Composio schemas for 1 tool(s).");
   });
 
-  test("composio_execute_tool passes user context through", async () => {
+  test("composio_execute_tool binds the resolved account per call", async () => {
+    const calls: Array<{ slug: string; body: Record<string, unknown> }> = [];
     const tool = executeToolTool({
-      executeTool: async (input) => ({
-        ok: true,
-        input,
-      }),
+      resolveAccount: async (app, account) => {
+        expect(app).toBe("linear");
+        expect(account).toBe("work");
+        return { connectedAccountId: "ca_work123", userId: "default" };
+      },
+      executeTool: async (slug, body) => {
+        calls.push({ slug, body });
+        return { data: { ok: true }, error: null, successful: true };
+      },
     });
 
     const result = await tool.execute("call_3", {
       slug: "LINEAR_CREATE_ISSUE",
       arguments: { title: "Broken sync" },
+      account: "work",
     });
-    expect(result.details).toEqual({
-      slug: "LINEAR_CREATE_ISSUE",
-      response: {
-        ok: true,
-        input: {
-          slug: "LINEAR_CREATE_ISSUE",
+
+    expect(calls).toEqual([
+      {
+        slug: "LINEAR_CREATE_ISSUE",
+        body: {
           arguments: { title: "Broken sync" },
+          connectedAccountId: "ca_work123",
+          userId: "default",
+          dangerouslySkipVersionCheck: true,
         },
       },
+    ]);
+    expect(result.details).toEqual({
+      slug: "LINEAR_CREATE_ISSUE",
+      resolvedAccount: { connectedAccountId: "ca_work123", userId: "default" },
+      response: { data: { ok: true }, error: null, successful: true },
     });
     expect(result.content[0]?.text).toContain("Executed Composio tool LINEAR_CREATE_ISSUE.");
   });
 
-  test("remaining meta-tool wrappers pass raw arguments through", async () => {
-    const cases = [
-      {
-        tool: multiExecuteToolTool,
-        publicName: "composio_multi_execute_tool",
-        metaSlug: "COMPOSIO_MULTI_EXECUTE_TOOL",
-        params: { tools: [{ slug: "LINEAR_CREATE_ISSUE", arguments: { title: "Bug" } }] },
+  test("composio_execute_tool throws on tool-level failure", async () => {
+    const tool = executeToolTool({
+      resolveAccount: async () => ({ userId: "default" }),
+      executeTool: async () => ({ data: {}, error: "boom", successful: false }),
+    });
+
+    let thrown: unknown;
+    try {
+      await tool.execute("call_3b", { slug: "LINEAR_CREATE_ISSUE" });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toContain("Composio tool LINEAR_CREATE_ISSUE failed: boom");
+  });
+
+  test("composio_multi_execute_tool loops tools with a single account", async () => {
+    const calls: Array<{ slug: string; body: Record<string, unknown> }> = [];
+    const tool = multiExecuteToolTool({
+      resolveAccount: async (_app, account) => {
+        expect(account).toBe("perso");
+        return { connectedAccountId: "ca_perso", userId: "alt" };
       },
+      executeTool: async (slug, body) => {
+        calls.push({ slug, body });
+        return { data: { slug }, error: null, successful: true };
+      },
+    });
+
+    const result = await tool.execute("call_multi", {
+      account: "perso",
+      tools: [
+        { slug: "LINEAR_CREATE_ISSUE", arguments: { title: "Bug" } },
+        { slug: "GITHUB_GET_REPO" },
+      ],
+    });
+
+    expect(calls).toEqual([
+      {
+        slug: "LINEAR_CREATE_ISSUE",
+        body: {
+          arguments: { title: "Bug" },
+          connectedAccountId: "ca_perso",
+          userId: "alt",
+          dangerouslySkipVersionCheck: true,
+        },
+      },
+      {
+        slug: "GITHUB_GET_REPO",
+        body: {
+          arguments: {},
+          connectedAccountId: "ca_perso",
+          userId: "alt",
+          dangerouslySkipVersionCheck: true,
+        },
+      },
+    ]);
+    expect(result.details).toEqual({
+      account: "perso",
+      results: [
+        { slug: "LINEAR_CREATE_ISSUE", response: { data: { slug: "LINEAR_CREATE_ISSUE" }, error: null, successful: true } },
+        { slug: "GITHUB_GET_REPO", response: { data: { slug: "GITHUB_GET_REPO" }, error: null, successful: true } },
+      ],
+    });
+    expect(result.content[0]?.text).toContain("Executed 2 Composio tool(s).");
+  });
+
+  test("remote meta-tool wrappers pass raw arguments through", async () => {
+    const cases = [
       {
         tool: remoteBashToolTool,
         publicName: "composio_remote_bash_tool",
@@ -116,82 +193,63 @@ describe("runtime tools", () => {
     }
   });
 
-  test("composio_manage_connections returns the expected result shape", async () => {
-    const calls: Array<{ slug: string; input?: Record<string, unknown> }> = [];
+  test("composio_manage_connections lists accounts when already connected", async () => {
     const tool = manageConnectionsTool({
-      executeMetaTool: async (slug, input) => {
-        calls.push({ slug, input });
-        return {
-          data: {
-            results: {
-              linear: {
-                status: "active",
-              },
-            },
-          },
-        };
-      },
+      authorize: async () => ({
+        id: "ca_existing",
+        status: "ACTIVE",
+        redirectUrl: null,
+        async waitForConnection() {
+          throw new Error("should not wait when already active");
+        },
+      }),
+      listAccounts: async (app) => [
+        { id: "ca_existing", status: "ACTIVE", toolkit: { slug: app } },
+      ],
     });
 
     const result = await tool.execute("call_4", { app: "linear" });
-    expect(calls).toEqual([
-      {
-        slug: "COMPOSIO_MANAGE_CONNECTIONS",
-        input: { toolkits: ["linear"] },
-      },
-    ]);
     expect(result.details).toEqual({
       app: "linear",
-      connectionLinks: [],
-      response: {
-        data: {
-          results: {
-            linear: {
-              status: "active",
-            },
-          },
-        },
-      },
+      alias: undefined,
+      connectionLink: undefined,
+      connectedAccountId: "ca_existing",
+      status: "ACTIVE",
+      accounts: [{ id: "ca_existing", status: "ACTIVE", toolkit: { slug: "linear" } }],
     });
     expect(result.content[0]?.text).toContain("Composio connection status for linear.");
   });
 
-  test("composio_manage_connections shows deeplink UI and rechecks after approval", async () => {
-    const calls: Array<{ slug: string; input?: Record<string, unknown> }> = [];
+  test("composio_manage_connections shows deeplink, waits, and records the alias", async () => {
     const updates: string[] = [];
     const notifications: string[] = [];
     const confirmations: Array<{ title: string; message: string }> = [];
-    const responses = [
-      {
-        data: {
-          results: {
-            github: {
-              status: "initiated",
-              redirect_url: "https://connect.composio.dev/link/lk_test",
-            },
-          },
-        },
-      },
-      {
-        data: {
-          results: {
-            github: {
-              status: "active",
-            },
-          },
-        },
-      },
-    ];
+    const written: Array<{ app: string; label: string; caId: string; userId?: string }> = [];
+    let waited = false;
+
     const tool = manageConnectionsTool({
-      executeMetaTool: async (slug, input) => {
-        calls.push({ slug, input });
-        return responses.shift();
+      authorize: async (app, options) => {
+        expect(app).toBe("github");
+        expect(options.alias).toBe("work");
+        return {
+          id: "ca_new",
+          status: "INITIATED",
+          redirectUrl: "https://connect.composio.dev/link/lk_test",
+          async waitForConnection() {
+            waited = true;
+            return { id: "ca_new", status: "ACTIVE" };
+          },
+        };
+      },
+      listAccounts: async (app) => [{ id: "ca_new", status: "ACTIVE", toolkit: { slug: app } }],
+      writeAlias: async (app, label, caId, userId) => {
+        written.push({ app, label, caId, userId });
       },
     });
 
     const result = await tool.execute(
       "call_5",
-      { app: "github" },
+      { app: "github", alias: "work" },
       undefined,
       (update) => {
         if (typeof update === "object" && "content" in update) {
@@ -211,28 +269,17 @@ describe("runtime tools", () => {
       },
     );
 
-    expect(calls).toHaveLength(2);
+    expect(waited).toBe(true);
     expect(updates.some((text) => text.includes("https://connect.composio.dev/link/lk_test"))).toBe(true);
     expect(notifications[0]).toContain("Composio connection required for github");
     expect(confirmations[0]?.message).toContain("https://connect.composio.dev/link/lk_test");
-    expect(result.details).toEqual({
+    expect(written).toEqual([{ app: "github", label: "work", caId: "ca_new", userId: "default" }]);
+    expect(result.details).toMatchObject({
       app: "github",
-      connectionLinks: [
-        {
-          toolkit: "github",
-          url: "https://connect.composio.dev/link/lk_test",
-          instruction: undefined,
-        },
-      ],
-      response: {
-        data: {
-          results: {
-            github: {
-              status: "active",
-            },
-          },
-        },
-      },
+      alias: "work",
+      connectionLink: "https://connect.composio.dev/link/lk_test",
+      connectedAccountId: "ca_new",
+      status: "ACTIVE",
     });
   });
 });

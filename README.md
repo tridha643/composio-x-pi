@@ -112,9 +112,11 @@ The file contains a JSON array of automation definitions and the tool upserts by
 ## Local scripts
 
 - `bun test`
+- `bun run test:e2e`
 - `bun run typecheck`
 - `bun run build`
 - `bun run test:integration`
+- `bun run test:e2e:signup`
 - `bun run dev:pi`
 
 `bun run dev:pi` loads the extension from `src/index.ts` through Pi's embedding API.
@@ -125,8 +127,17 @@ Automated checks before handoff or release:
 
 ```bash
 bun run test
+bun run test:e2e
 bun run typecheck
 bun run build
+```
+
+`bun run test:e2e` is deterministic: it loads `src/index.ts` through Pi's SDK in an isolated HOME sandbox, verifies registered tools/commands, executes non-network tools, and exercises `/composio-init` without contacting Composio.
+
+Live signup e2e (depends on the external `agents.composio.dev` service):
+
+```bash
+bun run test:e2e:signup
 ```
 
 Integration test with real Composio credentials/config:
@@ -135,6 +146,8 @@ Integration test with real Composio credentials/config:
 COMPOSIO_API_KEY_TEST=...
 COMPOSIO_TEST_TRIGGER_SLUG=...
 COMPOSIO_TEST_TRIGGER_CONFIG_JSON='...'
+# Optional: bind to a known active connected account/alias/word id.
+COMPOSIO_TEST_ACCOUNT=ca_...
 bun run test:integration
 ```
 

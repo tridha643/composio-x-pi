@@ -27,6 +27,7 @@ const expectedTools = [
   "composio_execute_tool",
   "composio_manage_connections",
   "composio_multi_execute_tool",
+  "composio_remember_account",
   "composio_remote_bash_tool",
   "composio_remote_workbench",
   "composio_list_trigger_types",
