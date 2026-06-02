@@ -2,9 +2,9 @@ import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
 import { getComposioSdk } from "../../composio-client.js";
+import { invalidateAccounts } from "../../lib/account-directory.js";
 import { resolveAccount } from "../../lib/account-resolver.js";
 import type { ResolvedAccount } from "../../lib/account-resolver.js";
-import { writeAccountAlias } from "../../lib/account-store.js";
 import { UserFacingError } from "../../lib/errors.js";
 import { createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 
@@ -25,7 +25,6 @@ export type RememberAccountParams = Static<typeof parameters>;
 export function rememberAccountTool(deps: {
   resolveAccount?: (app: string, account: string | undefined) => Promise<ResolvedAccount>;
   updateAlias?: (caId: string, alias: string) => Promise<unknown>;
-  writeAlias?: (app: string, label: string, caId: string, userId?: string) => Promise<void>;
 } = {}) {
   return createTool<RememberAccountParams>({
     name: "composio_remember_account",
@@ -41,7 +40,6 @@ export function rememberAccountTool(deps: {
           const sdk = await getComposioSdk();
           return sdk.connectedAccounts.update(caId, { alias });
         });
-      const writeAlias = deps.writeAlias ?? writeAccountAlias;
 
       const resolved = await resolve(params.app, params.account);
       if (!resolved.connectedAccountId) {
@@ -54,7 +52,7 @@ export function rememberAccountTool(deps: {
       const caId = resolved.connectedAccountId;
 
       await withProgress(() => updateAlias(caId, params.label), onUpdate, "Saving Composio alias...");
-      await writeAlias(params.app, params.label, caId, resolved.userId);
+      invalidateAccounts(resolved.userId);
 
       return textResult(
         summarizeJson(`Remembered ${params.app} account as "${params.label}".`, {

@@ -2,6 +2,7 @@ import { claim as composioClaim } from "../auth/claim.js";
 import { signup as composioSignup } from "../auth/signup.js";
 import { executeTool } from "./execute-tool.js";
 import { getToolSchemas } from "./get-tool-schemas.js";
+import { listAccounts } from "./list-accounts.js";
 import { manageConnections } from "./manage-connections.js";
 import { multiExecuteTool } from "./multi-execute-tool.js";
 import { rememberAccount } from "./remember-account.js";
@@ -17,6 +18,7 @@ export const runtimeTools = [
   executeTool,
   manageConnections,
   multiExecuteTool,
+  listAccounts,
   rememberAccount,
   remoteBashTool,
   remoteWorkbench,

@@ -3,7 +3,7 @@ import type { Static } from "@sinclair/typebox";
 
 import { getComposioSdk, getToolRouterSession } from "../../composio-client.js";
 import type { ConnectedAccountSummary } from "../../composio-client.js";
-import { readAccountStore, writeAccountAlias } from "../../lib/account-store.js";
+import { invalidateAccounts, resolveUserId } from "../../lib/account-directory.js";
 import { createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 import type { ToolUpdateFn } from "../../lib/toolkit.js";
 
@@ -33,10 +33,6 @@ type UiContext = {
     confirm?: (title: string, message: string) => Promise<boolean>;
   };
 };
-
-function resolveUserId(): string {
-  return readAccountStore().userId || process.env.COMPOSIO_USER_ID?.trim() || "default";
-}
 
 async function presentConnectionLink(
   app: string,
@@ -69,7 +65,6 @@ async function presentConnectionLink(
 export function manageConnectionsTool(deps: {
   authorize?: (app: string, options: { alias?: string }) => Promise<ConnectionRequestLike>;
   listAccounts?: (app: string, userId: string) => Promise<ConnectedAccountSummary[]>;
-  writeAlias?: (app: string, label: string, caId: string, userId?: string) => Promise<void>;
 } = {}) {
   return createTool<ManageConnectionsParams>({
     name: "composio_manage_connections",
@@ -102,8 +97,6 @@ export function manageConnectionsTool(deps: {
           return response.items ?? [];
         });
 
-      const writeAlias = deps.writeAlias ?? writeAccountAlias;
-
       const connectionRequest = await withProgress(
         () => authorize(params.app, params.alias === undefined ? {} : { alias: params.alias }),
         onUpdate,
@@ -124,15 +117,12 @@ export function manageConnectionsTool(deps: {
           );
           connectedAccountId = account.id ?? connectedAccountId;
           finalStatus = account.status ?? "ACTIVE";
-
-          if (params.alias && connectedAccountId) {
-            await writeAlias(params.app, params.alias, connectedAccountId, userId);
-          }
         }
-      } else if (params.alias && connectedAccountId) {
-        // Already connected (no deeplink needed) — still record the alias.
-        await writeAlias(params.app, params.alias, connectedAccountId, userId);
       }
+
+      // The alias (if any) is already persisted server-side by authorize(app, { alias }).
+      // Invalidate the cache so the freshly connected account surfaces immediately.
+      invalidateAccounts(userId);
 
       const accounts = await listAccounts(params.app, userId).catch(() => [] as ConnectedAccountSummary[]);
 

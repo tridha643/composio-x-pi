@@ -220,11 +220,10 @@ describe("runtime tools", () => {
     expect(result.content[0]?.text).toContain("Composio connection status for linear.");
   });
 
-  test("composio_manage_connections shows deeplink, waits, and records the alias", async () => {
+  test("composio_manage_connections shows deeplink and waits for connection", async () => {
     const updates: string[] = [];
     const notifications: string[] = [];
     const confirmations: Array<{ title: string; message: string }> = [];
-    const written: Array<{ app: string; label: string; caId: string; userId?: string }> = [];
     let waited = false;
 
     const tool = manageConnectionsTool({
@@ -242,9 +241,6 @@ describe("runtime tools", () => {
         };
       },
       listAccounts: async (app) => [{ id: "ca_new", status: "ACTIVE", toolkit: { slug: app } }],
-      writeAlias: async (app, label, caId, userId) => {
-        written.push({ app, label, caId, userId });
-      },
     });
 
     const result = await tool.execute(
@@ -273,7 +269,6 @@ describe("runtime tools", () => {
     expect(updates.some((text) => text.includes("https://connect.composio.dev/link/lk_test"))).toBe(true);
     expect(notifications[0]).toContain("Composio connection required for github");
     expect(confirmations[0]?.message).toContain("https://connect.composio.dev/link/lk_test");
-    expect(written).toEqual([{ app: "github", label: "work", caId: "ca_new", userId: "default" }]);
     expect(result.details).toMatchObject({
       app: "github",
       alias: "work",
