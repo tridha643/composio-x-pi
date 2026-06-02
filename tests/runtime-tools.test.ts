@@ -3,6 +3,9 @@ import { describe, expect, test } from "bun:test";
 import { executeToolTool } from "../src/tools/runtime/execute-tool.js";
 import { getToolSchemasTool } from "../src/tools/runtime/get-tool-schemas.js";
 import { manageConnectionsTool } from "../src/tools/runtime/manage-connections.js";
+import { multiExecuteToolTool } from "../src/tools/runtime/multi-execute-tool.js";
+import { remoteBashToolTool } from "../src/tools/runtime/remote-bash-tool.js";
+import { remoteWorkbenchTool } from "../src/tools/runtime/remote-workbench.js";
 import { searchToolsTool } from "../src/tools/runtime/search-tools.js";
 
 describe("runtime tools", () => {
@@ -68,6 +71,49 @@ describe("runtime tools", () => {
       },
     });
     expect(result.content[0]?.text).toContain("Executed Composio tool LINEAR_CREATE_ISSUE.");
+  });
+
+  test("remaining meta-tool wrappers pass raw arguments through", async () => {
+    const cases = [
+      {
+        tool: multiExecuteToolTool,
+        publicName: "composio_multi_execute_tool",
+        metaSlug: "COMPOSIO_MULTI_EXECUTE_TOOL",
+        params: { tools: [{ slug: "LINEAR_CREATE_ISSUE", arguments: { title: "Bug" } }] },
+      },
+      {
+        tool: remoteBashToolTool,
+        publicName: "composio_remote_bash_tool",
+        metaSlug: "COMPOSIO_REMOTE_BASH_TOOL",
+        params: { command: "jq . data.json" },
+      },
+      {
+        tool: remoteWorkbenchTool,
+        publicName: "composio_remote_workbench",
+        metaSlug: "COMPOSIO_REMOTE_WORKBENCH",
+        params: { code: "print('hello')" },
+      },
+    ];
+
+    for (const testCase of cases) {
+      const calls: Array<{ slug: string; input?: Record<string, unknown> }> = [];
+      const tool = testCase.tool({
+        executeMetaTool: async (slug, input) => {
+          calls.push({ slug, input });
+          return { ok: true, slug, input };
+        },
+      });
+
+      const result = await tool.execute("call_meta", testCase.params);
+      expect(tool.name).toBe(testCase.publicName);
+      expect(calls).toEqual([{ slug: testCase.metaSlug, input: testCase.params }]);
+      expect(result.details).toEqual({
+        metaSlug: testCase.metaSlug,
+        input: testCase.params,
+        response: { ok: true, slug: testCase.metaSlug, input: testCase.params },
+      });
+      expect(result.content[0]?.text).toContain(testCase.metaSlug);
+    }
   });
 
   test("composio_manage_connections returns the expected result shape", async () => {

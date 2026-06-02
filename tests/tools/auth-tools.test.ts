@@ -61,6 +61,23 @@ describe("composio_signup tool", () => {
     expect(result.content[0]?.text).toContain("Reused existing Composio agent identity");
     expect(result.details).toMatchObject({ reused: true });
   });
+
+  test("returns actionable failure details instead of throwing", async () => {
+    const tool = signupTool({
+      ensureAgentIdentity: async () => {
+        throw new Error("agent endpoint unavailable");
+      },
+    });
+
+    const result = await tool.execute("call_signup_4", {});
+    expect(result.content[0]?.text).toContain("Composio signup failed");
+    expect(result.content[0]?.text).toContain("agent endpoint unavailable");
+    expect(result.details).toMatchObject({
+      ok: false,
+      code: "UNEXPECTED_ERROR",
+      message: "agent endpoint unavailable",
+    });
+  });
 });
 
 describe("composio_claim tool", () => {

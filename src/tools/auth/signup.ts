@@ -1,6 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
+import { toUserFacingError } from "../../lib/errors.js";
 import { ensureAgentIdentity } from "../../lib/signup-flow.js";
 import { createTool, textResult } from "../../lib/toolkit.js";
 
@@ -21,17 +22,28 @@ export function signupTool(deps: {
     parameters,
     async execute(_toolCallId, params) {
       const invoke = deps.ensureAgentIdentity ?? ensureAgentIdentity;
-      const result = await invoke({ force: params.force });
 
-      const summary = result.reused
-        ? `Reused existing Composio agent identity (${result.slug}).`
-        : `Provisioned new Composio agent identity (${result.slug}).`;
+      try {
+        const result = await invoke({ force: params.force });
 
-      return textResult(summary, {
-        slug: result.slug,
-        email: result.email,
-        reused: result.reused,
-      });
+        const summary = result.reused
+          ? `Reused existing Composio agent identity (${result.slug}).`
+          : `Provisioned new Composio agent identity (${result.slug}).`;
+
+        return textResult(summary, {
+          slug: result.slug,
+          email: result.email,
+          reused: result.reused,
+        });
+      } catch (error) {
+        const userError = toUserFacingError(error);
+        return textResult(`Composio signup failed (${userError.code}): ${userError.message}`, {
+          ok: false,
+          code: userError.code,
+          message: userError.message,
+          details: userError.details,
+        });
+      }
     },
   });
 }
