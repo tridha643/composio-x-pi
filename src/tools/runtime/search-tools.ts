@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
-import { executeMetaTool } from "../../composio-client.js";
+import { getComposioSdk } from "../../composio-client.js";
 import { createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 
 const parameters = Type.Object({
@@ -12,7 +12,7 @@ const parameters = Type.Object({
 export type SearchToolsParams = Static<typeof parameters>;
 
 export function searchToolsTool(deps: {
-  executeMetaTool?: (slug: string, input?: Record<string, unknown>) => Promise<unknown>;
+  getRawTools?: (query: Record<string, unknown>) => Promise<unknown[]>;
 } = {}) {
   return createTool<SearchToolsParams>({
     name: "composio_search_tools",
@@ -20,21 +20,22 @@ export function searchToolsTool(deps: {
     description: "Search Composio tools using a natural-language query.",
     parameters,
     async execute(_toolCallId, params, _signal, onUpdate) {
-      const invoke = deps.executeMetaTool ?? executeMetaTool;
-      const response = await withProgress(
-        () =>
-          invoke("COMPOSIO_SEARCH_TOOLS", {
-            query: params.query,
-            ...(params.limit === undefined ? {} : { limit: params.limit }),
-          }),
-        onUpdate,
-      );
+      const invoke =
+        deps.getRawTools ??
+        (async (query: Record<string, unknown>) => {
+          const sdk = await getComposioSdk();
+          return sdk.tools.getRawComposioTools(query);
+        });
+
+      // The SDK forbids `search` + `limit` together, so we slice client-side.
+      const allTools = await withProgress(() => invoke({ search: params.query }), onUpdate);
+      const tools = params.limit === undefined ? allTools : allTools.slice(0, params.limit);
 
       return textResult(
-        summarizeJson(`Composio tool search results for "${params.query}".`, response),
+        summarizeJson(`Composio tool search results for "${params.query}".`, tools),
         {
           query: params.query,
-          response,
+          tools,
         },
       );
     },

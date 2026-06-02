@@ -45,27 +45,40 @@ describe("authoring tools", () => {
     expect(result.content[0]?.text).toContain("Trigger schema for GITHUB_COMMIT_EVENT.");
   });
 
-  test("composio_create_trigger returns the expected result shape", async () => {
+  test("composio_create_trigger binds the resolved account", async () => {
+    const calls: Array<{ userId: string; slug: string; body: Record<string, unknown> }> = [];
     const tool = createTriggerTool({
-      createTrigger: async (input) => ({
-        triggerId: "trg_123",
-        input,
-      }),
+      resolveAccount: async (app, account) => {
+        expect(app).toBe("github");
+        expect(account).toBe("work");
+        return { connectedAccountId: "ca_work", userId: "default" };
+      },
+      createTrigger: async (userId, slug, body) => {
+        calls.push({ userId, slug, body });
+        return { triggerId: "trg_123" };
+      },
     });
 
     const result = await tool.execute("call_3", {
       slug: "GITHUB_COMMIT_EVENT",
       triggerConfig: { owner: "acme", repo: "backend" },
+      account: "work",
     });
-    expect(result.details).toEqual({
-      slug: "GITHUB_COMMIT_EVENT",
-      response: {
-        triggerId: "trg_123",
-        input: {
-          slug: "GITHUB_COMMIT_EVENT",
+
+    expect(calls).toEqual([
+      {
+        userId: "default",
+        slug: "GITHUB_COMMIT_EVENT",
+        body: {
+          connectedAccountId: "ca_work",
           triggerConfig: { owner: "acme", repo: "backend" },
         },
       },
+    ]);
+    expect(result.details).toEqual({
+      slug: "GITHUB_COMMIT_EVENT",
+      resolvedAccount: { connectedAccountId: "ca_work", userId: "default" },
+      response: { triggerId: "trg_123" },
     });
     expect(result.content[0]?.text).toContain("Created Composio trigger GITHUB_COMMIT_EVENT.");
   });

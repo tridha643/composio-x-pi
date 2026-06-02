@@ -1,22 +1,30 @@
 import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
-import { executeMetaTool } from "../../composio-client.js";
+import { getComposioSdk, getToolRouterSession } from "../../composio-client.js";
+import type { ConnectedAccountSummary } from "../../composio-client.js";
+import { readAccountStore, writeAccountAlias } from "../../lib/account-store.js";
 import { createTool, summarizeJson, textResult, withProgress } from "../../lib/toolkit.js";
 import type { ToolUpdateFn } from "../../lib/toolkit.js";
 
 const parameters = Type.Object({
   app: Type.String({ minLength: 1 }),
-  entityId: Type.Optional(Type.String({ minLength: 1 })),
-  connectionId: Type.Optional(Type.String({ minLength: 1 })),
+  alias: Type.Optional(
+    Type.String({
+      minLength: 1,
+      description:
+        "Friendly label for this connection (e.g. \"work\" or \"personal\"). Pass a distinct alias to link an additional account on the same app.",
+    }),
+  ),
 });
 
 export type ManageConnectionsParams = Static<typeof parameters>;
 
-type ConnectionLink = {
-  toolkit: string;
-  url: string;
-  instruction?: string;
+type ConnectionRequestLike = {
+  id: string;
+  status?: string;
+  redirectUrl?: string | null;
+  waitForConnection: (timeout?: number) => Promise<{ id: string; status?: string }>;
 };
 
 type UiContext = {
@@ -26,54 +34,21 @@ type UiContext = {
   };
 };
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+function resolveUserId(): string {
+  return readAccountStore().userId || process.env.COMPOSIO_USER_ID?.trim() || "default";
 }
 
-function extractConnectionLinks(response: unknown): ConnectionLink[] {
-  const root = asRecord(response);
-  const data = asRecord(root?.data) ?? root;
-  const results = asRecord(data?.results);
-  if (!results) {
-    return [];
-  }
-
-  return Object.entries(results).flatMap(([toolkit, raw]) => {
-    const result = asRecord(raw);
-    const url = result?.redirect_url ?? result?.redirectUrl ?? result?.authUrl ?? result?.url;
-    if (typeof url !== "string" || !url.startsWith("http")) {
-      return [];
-    }
-
-    return [
-      {
-        toolkit,
-        url,
-        instruction: typeof result?.instruction === "string" ? result.instruction : undefined,
-      },
-    ];
-  });
-}
-
-async function presentConnectionLinks(
+async function presentConnectionLink(
   app: string,
-  links: ConnectionLink[],
+  url: string,
   ctx: unknown,
   onUpdate: ToolUpdateFn,
 ): Promise<boolean> {
-  if (links.length === 0) {
-    return false;
-  }
-
-  const message = links
-    .map((link) => `Connect ${link.toolkit}: ${link.url}`)
-    .join("\n");
-
   await onUpdate?.({
     content: [
       {
         type: "text",
-        text: `Composio needs a connection before ${app} tools can run.\n\n${message}`,
+        text: `Composio needs a connection before ${app} tools can run.\n\nConnect ${app}: ${url}`,
       },
     ],
   });
@@ -87,45 +62,87 @@ async function presentConnectionLinks(
 
   return await ui.confirm(
     `Connect ${app} in Composio`,
-    `Open this link to connect ${app}:\n\n${links[0].url}\n\nAfter approving it in your browser, choose Yes to re-check the connection now.`,
+    `Open this link to connect ${app}:\n\n${url}\n\nAfter approving it in your browser, choose Yes to confirm the connection now.`,
   );
 }
 
 export function manageConnectionsTool(deps: {
-  executeMetaTool?: (slug: string, input?: Record<string, unknown>) => Promise<unknown>;
+  authorize?: (app: string, options: { alias?: string }) => Promise<ConnectionRequestLike>;
+  listAccounts?: (app: string, userId: string) => Promise<ConnectedAccountSummary[]>;
+  writeAlias?: (app: string, label: string, caId: string, userId?: string) => Promise<void>;
 } = {}) {
   return createTool<ManageConnectionsParams>({
     name: "composio_manage_connections",
     label: "Composio Manage Connections",
     description:
-      "Inspect or create Composio connections for an app, showing an interactive deeplink when authentication is required.",
+      "Inspect or create Composio connections for an app, showing an interactive deeplink when authentication is required. Pass `alias` to link an additional account on the same app.",
     parameters,
     async execute(_toolCallId, params, _signal, onUpdate, ctx) {
-      const invoke = deps.executeMetaTool ?? executeMetaTool;
-      const input = {
-        toolkits: [params.app],
-        ...(params.entityId === undefined ? {} : { entity_id: params.entityId }),
-        ...(params.connectionId === undefined ? {} : { connected_account_id: params.connectionId }),
-      };
-      let response = await withProgress(
-        () => invoke("COMPOSIO_MANAGE_CONNECTIONS", input),
+      const userId = resolveUserId();
+
+      const authorize =
+        deps.authorize ??
+        (async (app: string, options: { alias?: string }) => {
+          const session = await getToolRouterSession();
+          const fn = (session as { authorize?: unknown }).authorize;
+          if (typeof fn !== "function") {
+            throw new Error("Composio tool router session does not expose authorize().");
+          }
+          return (await fn.call(session, app, options)) as ConnectionRequestLike;
+        });
+
+      const listAccounts =
+        deps.listAccounts ??
+        (async (app: string, uid: string) => {
+          const sdk = await getComposioSdk();
+          const response = await sdk.connectedAccounts.list({
+            toolkitSlugs: [app],
+            userIds: [uid],
+          });
+          return response.items ?? [];
+        });
+
+      const writeAlias = deps.writeAlias ?? writeAccountAlias;
+
+      const connectionRequest = await withProgress(
+        () => authorize(params.app, params.alias === undefined ? {} : { alias: params.alias }),
         onUpdate,
+        `Preparing ${params.app} connection...`,
       );
 
-      const links = extractConnectionLinks(response);
-      const shouldRecheck = await presentConnectionLinks(params.app, links, ctx, onUpdate);
-      if (shouldRecheck) {
-        response = await withProgress(
-          () => invoke("COMPOSIO_MANAGE_CONNECTIONS", input),
-          onUpdate,
-          "Re-checking Composio connection...",
-        );
+      const url = connectionRequest.redirectUrl;
+      let connectedAccountId = connectionRequest.id;
+      let finalStatus = connectionRequest.status;
+
+      if (typeof url === "string" && url.startsWith("http")) {
+        const proceed = await presentConnectionLink(params.app, url, ctx, onUpdate);
+        if (proceed) {
+          const account = await withProgress(
+            () => connectionRequest.waitForConnection(),
+            onUpdate,
+            "Waiting for Composio connection...",
+          );
+          connectedAccountId = account.id ?? connectedAccountId;
+          finalStatus = account.status ?? "ACTIVE";
+
+          if (params.alias && connectedAccountId) {
+            await writeAlias(params.app, params.alias, connectedAccountId, userId);
+          }
+        }
+      } else if (params.alias && connectedAccountId) {
+        // Already connected (no deeplink needed) — still record the alias.
+        await writeAlias(params.app, params.alias, connectedAccountId, userId);
       }
 
-      return textResult(summarizeJson(`Composio connection status for ${params.app}.`, response), {
+      const accounts = await listAccounts(params.app, userId).catch(() => [] as ConnectedAccountSummary[]);
+
+      return textResult(summarizeJson(`Composio connection status for ${params.app}.`, accounts), {
         app: params.app,
-        connectionLinks: links,
-        response,
+        alias: params.alias,
+        connectionLink: typeof url === "string" ? url : undefined,
+        connectedAccountId,
+        status: finalStatus,
+        accounts,
       });
     },
   });

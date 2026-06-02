@@ -24,6 +24,22 @@ function extractTriggerId(value: unknown): string | undefined {
   return undefined;
 }
 
+function extractItems(value: unknown): Record<string, unknown>[] {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const record = value as Record<string, unknown>;
+  const items = record.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.filter((item): item is Record<string, unknown> =>
+    Boolean(item) && typeof item === "object" && !Array.isArray(item)
+  );
+}
+
 async function main(): Promise<void> {
   const apiKey = process.env.COMPOSIO_API_KEY_TEST?.trim();
   if (!apiKey) {
@@ -43,6 +59,10 @@ async function main(): Promise<void> {
 
   process.env.COMPOSIO_API_KEY = apiKey;
   const triggerConfig = JSON.parse(rawConfig) as Record<string, unknown>;
+  const account =
+    process.env.COMPOSIO_TEST_ACCOUNT?.trim() ||
+    process.env.COMPOSIO_TEST_CONNECTED_ACCOUNT_ID?.trim() ||
+    undefined;
 
   const createTrigger = createTriggerTool();
   const listTriggers = listTriggersTool();
@@ -51,6 +71,7 @@ async function main(): Promise<void> {
   const created = await createTrigger.execute("integration_create", {
     slug: triggerSlug,
     triggerConfig,
+    ...(account === undefined ? {} : { account }),
   });
   console.log(created.content[0]?.text ?? "Created trigger.");
 
@@ -60,7 +81,12 @@ async function main(): Promise<void> {
   }
 
   const listed = await listTriggers.execute("integration_list", {});
-  console.log(listed.content[0]?.text ?? "Listed triggers.");
+  const listedItems = extractItems((listed.details as Record<string, unknown> | undefined)?.response);
+  const createdTriggerWasListed = listedItems.some((item) => item.id === triggerId);
+  if (!createdTriggerWasListed) {
+    throw new Error(`Created trigger ${triggerId} was not returned by list triggers.`);
+  }
+  console.log(`Listed ${listedItems.length} trigger(s); created trigger ${triggerId} is present.`);
 
   const deleted = await deleteTrigger.execute("integration_delete", {
     triggerId,
