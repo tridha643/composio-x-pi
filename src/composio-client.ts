@@ -58,7 +58,7 @@ function requireConfiguredValue(value: string | undefined, label: string): strin
   throw new UserFacingError(
     "MISSING_CONFIG",
     label === "COMPOSIO_API_KEY"
-      ? "No Composio credentials found. Call the `composio_signup` tool to provision an identity, or set `COMPOSIO_API_KEY` in the environment."
+      ? "No Composio project API key found. Run `/composio-init` with a Composio project API key, set `COMPOSIO_API_KEY`, or call `composio_signup` when the Composio agent-signup service is available."
       : `${label} is required. Check the Composio x Pi extension configuration.`,
   );
 }
@@ -174,7 +174,11 @@ export async function getToolRouterSession(): Promise<unknown> {
   const client = await getComposioClient();
   if (!toolRouterSessionPromise) {
     const { parent, method } = getMethod(client, "create");
-    toolRouterSessionPromise = Promise.resolve(method.call(parent, DEFAULT_COMPOSIO_ENTITY));
+    toolRouterSessionPromise = Promise.resolve(
+      method.call(parent, DEFAULT_COMPOSIO_ENTITY, {
+        workbench: { enable: true },
+      }),
+    );
   }
 
   return toolRouterSessionPromise;

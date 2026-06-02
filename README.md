@@ -83,12 +83,17 @@ All tools are registered by default:
 - `composio_get_tool_schemas`
 - `composio_execute_tool`
 - `composio_manage_connections`
+- `composio_multi_execute_tool`
+- `composio_remote_bash_tool`
+- `composio_remote_workbench`
 - `composio_list_trigger_types`
 - `composio_get_trigger_type_schema`
 - `composio_create_trigger`
 - `composio_list_triggers`
 - `composio_delete_trigger`
 - `save_automation_definition`
+
+The multi-execute and remote-workbench tools are thin meta-tool wrappers: pass the raw JSON arguments expected by the corresponding `COMPOSIO_*` meta tool/schema.
 
 ### Automation JSON handoff
 

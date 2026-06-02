@@ -1,6 +1,13 @@
 import { UserFacingError } from "./errors.js";
 
-const AGENT_BASE_URL = "https://agents.composio.dev";
+const DEFAULT_AGENT_BASE_URL = "https://agents.composio.dev";
+const AGENT_BASE_URL_ENV = "COMPOSIO_AGENT_BASE_URL";
+const MAX_ERROR_BODY_LENGTH = 1000;
+
+function getAgentBaseUrl(): string {
+  const configured = process.env[AGENT_BASE_URL_ENV]?.trim();
+  return (configured || DEFAULT_AGENT_BASE_URL).replace(/\/+$/, "");
+}
 
 export type AgentSignupComposio = {
   member_id?: string;
@@ -29,10 +36,37 @@ export type ClaimResponse = {
 async function readErrorBody(response: Response): Promise<string> {
   try {
     const text = await response.text();
-    return text || `${response.status} ${response.statusText}`;
+    const detail = text || `${response.status} ${response.statusText}`;
+    return detail.length <= MAX_ERROR_BODY_LENGTH
+      ? detail
+      : `${detail.slice(0, MAX_ERROR_BODY_LENGTH)}\n...`;
   } catch {
     return `${response.status} ${response.statusText}`;
   }
+}
+
+function deploymentNotFoundHint(response: Response, detail: string): string | undefined {
+  const vercelError = response.headers.get("x-vercel-error");
+  if (vercelError === "DEPLOYMENT_NOT_FOUND" || detail.includes("DEPLOYMENT_NOT_FOUND")) {
+    return "The Composio agent-signup service deployment is unavailable. This is not a missing Gmail/app connection. Until Composio restores the agent endpoint, run `/composio-init` with a Composio project API key or set COMPOSIO_API_KEY.";
+  }
+
+  return undefined;
+}
+
+function agentRequestFailed(operation: string, response: Response, detail: string): UserFacingError {
+  const hint = deploymentNotFoundHint(response, detail);
+  const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+  const message = hint
+    ? `Composio agent ${operation} failed: ${status}. ${hint}`
+    : `Composio agent ${operation} failed: ${detail}`;
+
+  return new UserFacingError("AGENT_SIGNUP_FAILED", message, {
+    status: response.status,
+    statusText: response.statusText,
+    vercelError: response.headers.get("x-vercel-error") ?? undefined,
+    detail,
+  });
 }
 
 export async function signUp(
@@ -46,7 +80,7 @@ export async function signUp(
     params.set("force", "true");
   }
 
-  const url = `${AGENT_BASE_URL}/api/signup${params.size ? `?${params.toString()}` : ""}`;
+  const url = `${getAgentBaseUrl()}/api/signup${params.size ? `?${params.toString()}` : ""}`;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,34 +98,28 @@ export async function signUp(
 
   if (!response.ok) {
     const detail = await readErrorBody(response);
-    throw new UserFacingError(
-      "AGENT_SIGNUP_FAILED",
-      `Composio agent signup failed: ${detail}`,
-    );
+    throw agentRequestFailed("signup", response, detail);
   }
 
   return (await response.json()) as AgentSignupResponse;
 }
 
 export async function whoami(agentKey: string): Promise<AgentSignupResponse> {
-  const response = await fetch(`${AGENT_BASE_URL}/api/whoami`, {
+  const response = await fetch(`${getAgentBaseUrl()}/api/whoami`, {
     method: "GET",
     headers: { Authorization: `Bearer ${agentKey}` },
   });
 
   if (!response.ok) {
     const detail = await readErrorBody(response);
-    throw new UserFacingError(
-      "AGENT_SIGNUP_FAILED",
-      `Composio agent whoami failed: ${detail}`,
-    );
+    throw agentRequestFailed("whoami", response, detail);
   }
 
   return (await response.json()) as AgentSignupResponse;
 }
 
 export async function claim(agentKey: string, email: string): Promise<ClaimResponse> {
-  const response = await fetch(`${AGENT_BASE_URL}/api/claim`, {
+  const response = await fetch(`${getAgentBaseUrl()}/api/claim`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -102,10 +130,8 @@ export async function claim(agentKey: string, email: string): Promise<ClaimRespo
 
   if (!response.ok) {
     const detail = await readErrorBody(response);
-    throw new UserFacingError(
-      "AGENT_CLAIM_FAILED",
-      `Composio agent claim failed: ${detail}`,
-    );
+    const signupError = agentRequestFailed("claim", response, detail);
+    throw new UserFacingError("AGENT_CLAIM_FAILED", signupError.message, signupError.details);
   }
 
   return (await response.json()) as ClaimResponse;
