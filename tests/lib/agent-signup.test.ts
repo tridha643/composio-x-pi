@@ -6,6 +6,7 @@ import { UserFacingError } from "../../src/lib/errors.js";
 type FetchCall = { url: string; init?: RequestInit };
 
 const originalFetch = globalThis.fetch;
+const originalAgentBaseUrl = process.env.COMPOSIO_AGENT_BASE_URL;
 let calls: FetchCall[] = [];
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -30,6 +31,11 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  if (originalAgentBaseUrl === undefined) {
+    delete process.env.COMPOSIO_AGENT_BASE_URL;
+  } else {
+    process.env.COMPOSIO_AGENT_BASE_URL = originalAgentBaseUrl;
+  }
 });
 
 describe("agent-signup client", () => {
@@ -74,6 +80,40 @@ describe("agent-signup client", () => {
     expect(captured).toBeInstanceOf(UserFacingError);
     expect((captured as UserFacingError).code).toBe("AGENT_SIGNUP_FAILED");
     expect((captured as UserFacingError).message).toContain("rate limited");
+  });
+
+  test("signUp explains missing agent service deployment", async () => {
+    installFetchMock(() =>
+      new Response("The deployment could not be found on Vercel.\n\nDEPLOYMENT_NOT_FOUND", {
+        status: 404,
+        statusText: "Not Found",
+        headers: { "x-vercel-error": "DEPLOYMENT_NOT_FOUND" },
+      }),
+    );
+
+    let captured: unknown;
+    try {
+      await signUp();
+    } catch (error) {
+      captured = error;
+    }
+
+    expect(captured).toBeInstanceOf(UserFacingError);
+    expect((captured as UserFacingError).code).toBe("AGENT_SIGNUP_FAILED");
+    expect((captured as UserFacingError).message).toContain("agent-signup service deployment is unavailable");
+    expect((captured as UserFacingError).message).toContain("/composio-init");
+    expect((captured as UserFacingError).details).toMatchObject({
+      status: 404,
+      vercelError: "DEPLOYMENT_NOT_FOUND",
+    });
+  });
+
+  test("signUp supports COMPOSIO_AGENT_BASE_URL override", async () => {
+    process.env.COMPOSIO_AGENT_BASE_URL = "https://agent-proxy.example.test/";
+    installFetchMock(() => jsonResponse({ status: "ready", agent_key: "k", composio: { api_key: "ak" } }));
+
+    await signUp();
+    expect(calls[0].url).toBe("https://agent-proxy.example.test/api/signup");
   });
 
   test("whoami sends bearer auth and returns JSON", async () => {

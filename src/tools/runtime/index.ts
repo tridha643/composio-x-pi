@@ -3,6 +3,9 @@ import { signup as composioSignup } from "../auth/signup.js";
 import { executeTool } from "./execute-tool.js";
 import { getToolSchemas } from "./get-tool-schemas.js";
 import { manageConnections } from "./manage-connections.js";
+import { multiExecuteTool } from "./multi-execute-tool.js";
+import { remoteBashTool } from "./remote-bash-tool.js";
+import { remoteWorkbench } from "./remote-workbench.js";
 import { searchTools } from "./search-tools.js";
 
 export const runtimeTools = [
@@ -12,6 +15,9 @@ export const runtimeTools = [
   getToolSchemas,
   executeTool,
   manageConnections,
+  multiExecuteTool,
+  remoteBashTool,
+  remoteWorkbench,
 ];
 
 export const runtimeToolNames = runtimeTools.map((tool) => tool.name);
