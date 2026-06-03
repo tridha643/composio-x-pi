@@ -2,6 +2,7 @@ import { Type } from "@sinclair/typebox";
 import type { Static } from "@sinclair/typebox";
 
 import { getComposioSdk } from "../../composio-client.js";
+import { writeDefaultComposioAccount } from "../../config-store.js";
 import { invalidateAccounts } from "../../lib/account-directory.js";
 import { resolveAccount } from "../../lib/account-resolver.js";
 import type { ResolvedAccount } from "../../lib/account-resolver.js";
@@ -52,6 +53,7 @@ export function rememberAccountTool(deps: {
       const caId = resolved.connectedAccountId;
 
       await withProgress(() => updateAlias(caId, params.label), onUpdate, "Saving Composio alias...");
+      await writeDefaultComposioAccount(params.app, params.label);
       invalidateAccounts(resolved.userId);
 
       return textResult(
