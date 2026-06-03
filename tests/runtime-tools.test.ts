@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { selectDefaultActiveAccount } from "../src/lib/account-resolver.js";
 import { executeToolTool } from "../src/tools/runtime/execute-tool.js";
 import { getToolSchemasTool } from "../src/tools/runtime/get-tool-schemas.js";
 import { manageConnectionsTool } from "../src/tools/runtime/manage-connections.js";
@@ -9,6 +10,16 @@ import { remoteWorkbenchTool } from "../src/tools/runtime/remote-workbench.js";
 import { searchToolsTool } from "../src/tools/runtime/search-tools.js";
 
 describe("runtime tools", () => {
+  test("default account selection prefers active accounts over expired ones", () => {
+    const selected = selectDefaultActiveAccount("github", [
+      { id: "ca_expired", status: "EXPIRED", toolkit: { slug: "github" } },
+      { id: "ca_active", status: "ACTIVE", toolkit: { slug: "github" } },
+      { id: "ca_other", status: "ACTIVE", toolkit: { slug: "linear" } },
+    ]);
+
+    expect(selected?.id).toBe("ca_active");
+  });
+
   test("composio_search_tools returns the expected result shape", async () => {
     const tool = searchToolsTool({
       getRawTools: async () => [{ slug: "LINEAR_CREATE_ISSUE", score: 0.98 }],
