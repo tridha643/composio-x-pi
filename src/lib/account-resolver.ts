@@ -7,6 +7,17 @@ export type ResolvedAccount = {
   userId: string;
 };
 
+function isActiveAccount(account: ConnectedAccountSummary): boolean {
+  return account.status.toUpperCase() === "ACTIVE";
+}
+
+export function selectDefaultActiveAccount(
+  app: string,
+  accounts: ConnectedAccountSummary[],
+): ConnectedAccountSummary | undefined {
+  return accounts.find((item) => item.toolkit.slug === app && isActiveAccount(item));
+}
+
 /**
  * Resolve a friendly `account` selector to a concrete connected-account id + userId.
  *
@@ -22,6 +33,21 @@ export async function resolveAccount(
   const userId = resolveUserId();
 
   if (account === undefined) {
+    // Do not let the Composio backend silently pick an expired/stale default
+    // connected account. This is common in embedded surfaces like boring.notch,
+    // where the user says "use Slack/GitHub" without an explicit account label;
+    // the API key is valid, but tool execution fails because the default account
+    // is not. Prefer an ACTIVE account when the backend can be reached, and fall
+    // back to legacy unbound execution if account lookup itself is unavailable.
+    try {
+      const active = selectDefaultActiveAccount(app, await listConnectedAccounts(userId));
+      if (active) {
+        return { connectedAccountId: active.id, userId };
+      }
+    } catch {
+      return { userId };
+    }
+
     return { userId };
   }
 
