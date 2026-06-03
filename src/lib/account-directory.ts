@@ -74,14 +74,17 @@ export function renderAccountsPromptSnippet(accounts: ConnectedAccountSummary[])
   const lines: string[] = [
     "",
     "## Composio connected accounts",
-    "Connected accounts available right now. Pass the alias, word id, or ca_ id as the `account` parameter to target one:",
+    "Connected accounts available right now. Use ACTIVE accounts only. Always pass the alias, word id, or ca_ id as the `account` parameter when one is listed. Never use EXPIRED or INITIALIZING accounts; reconnect them with composio_manage_connections.",
   ];
 
   for (const app of [...byApp.keys()].sort()) {
     const rendered = (byApp.get(app) ?? [])
       .map((account) => {
         const name = account.alias ?? account.wordId ?? account.id;
-        return `${name} (${account.id}) [${account.status}]`;
+        const instruction = account.status.toUpperCase() === "ACTIVE"
+          ? ` → use account=\"${name}\"`
+          : " → reconnect before use";
+        return `${name} (${account.id}) [${account.status}]${instruction}`;
       })
       .join(", ");
     lines.push(`- ${app}: ${rendered}`);

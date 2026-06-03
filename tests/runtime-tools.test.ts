@@ -20,6 +20,24 @@ describe("runtime tools", () => {
     expect(selected?.id).toBe("ca_active");
   });
 
+  test("default account selection uses preferred alias when multiple active accounts exist", () => {
+    const selected = selectDefaultActiveAccount("gmail", [
+      { id: "ca_work", alias: "work", status: "ACTIVE", toolkit: { slug: "gmail" } },
+      { id: "ca_personal", alias: "personal", status: "ACTIVE", toolkit: { slug: "gmail" } },
+    ], "personal");
+
+    expect(selected?.id).toBe("ca_personal");
+  });
+
+  test("default account selection refuses ambiguous active accounts without a preference", () => {
+    const selected = selectDefaultActiveAccount("gmail", [
+      { id: "ca_work", alias: "work", status: "ACTIVE", toolkit: { slug: "gmail" } },
+      { id: "ca_personal", alias: "personal", status: "ACTIVE", toolkit: { slug: "gmail" } },
+    ]);
+
+    expect(selected).toBeUndefined();
+  });
+
   test("composio_search_tools returns the expected result shape", async () => {
     const tool = searchToolsTool({
       getRawTools: async () => [{ slug: "LINEAR_CREATE_ISSUE", score: 0.98 }],
@@ -231,11 +249,41 @@ describe("runtime tools", () => {
     expect(result.content[0]?.text).toContain("Composio connection status for linear.");
   });
 
+  test("composio_manage_connections falls back to meta-tool links when authorize fails", async () => {
+    const updates: string[] = [];
+    const tool = manageConnectionsTool({
+      authorize: async () => {
+        throw new Error("authorize failed");
+      },
+      executeMetaTool: async (slug, input) => {
+        expect(slug).toBe("COMPOSIO_MANAGE_CONNECTIONS");
+        expect(input).toEqual({ toolkits: ["github"] });
+        return { data: { results: { github: { redirect_url: "https://connect.composio.dev/link/fallback" } } } };
+      },
+      listAccounts: async () => [],
+    });
+
+    const result = await tool.execute("call_fallback", { app: "github" }, undefined, (update) => {
+      if (typeof update === "object" && "content" in update) {
+        updates.push(update.content[0]?.text ?? "");
+      }
+    });
+
+    expect(updates.some((text) => text.includes("https://connect.composio.dev/link/fallback"))).toBe(true);
+    expect(result.content[0]?.text).toContain("Connect github: https://connect.composio.dev/link/fallback");
+    expect(result.details).toMatchObject({
+      app: "github",
+      connectionLink: "https://connect.composio.dev/link/fallback",
+      status: "INITIATED",
+    });
+  });
+
   test("composio_manage_connections shows deeplink and waits for connection", async () => {
     const updates: string[] = [];
     const notifications: string[] = [];
     const confirmations: Array<{ title: string; message: string }> = [];
     let waited = false;
+    const savedDefaults: Array<{ app: string; selector: string }> = [];
 
     const tool = manageConnectionsTool({
       authorize: async (app, options) => {
@@ -252,6 +300,9 @@ describe("runtime tools", () => {
         };
       },
       listAccounts: async (app) => [{ id: "ca_new", status: "ACTIVE", toolkit: { slug: app } }],
+      writeDefaultAccount: async (app, selector) => {
+        savedDefaults.push({ app, selector });
+      },
     });
 
     const result = await tool.execute(
@@ -280,6 +331,8 @@ describe("runtime tools", () => {
     expect(updates.some((text) => text.includes("https://connect.composio.dev/link/lk_test"))).toBe(true);
     expect(notifications[0]).toContain("Composio connection required for github");
     expect(confirmations[0]?.message).toContain("https://connect.composio.dev/link/lk_test");
+    expect(savedDefaults).toEqual([{ app: "github", selector: "work" }]);
+    expect(result.content[0]?.text).toContain("Connect github: https://connect.composio.dev/link/lk_test");
     expect(result.details).toMatchObject({
       app: "github",
       alias: "work",
